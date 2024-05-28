@@ -39,17 +39,77 @@ names(plz)[3] = "PLZ"
 plz$PLZ = as.double(plz$PLZ)
 dplz <- plz %>% distinct(PLZ, .keep_all = TRUE)
 
-kunden <- bind_rows(kunden_2016, kunden_2017, kunden_2018, kunden_2019)
+kunden <- bind_rows(kunden_2016, kunden_2017, kunden_2018) 
+"Kunden2019n"
 ges <- left_join(kunden, dplz, "PLZ")
+names(ges)[7] =  "NettoDB"
 
-kd <- ges[-c(1,13,12)]
-'kd$Kundenklasse <- kd$Kundenklasse == "A"
-kd$Kundenklasse <- as.numeric(kd$Kundenklasse)
+ges <- ges %>%
+  mutate(Quad = ifelse(Breitengrad <= 50 & Längengrad <= 10, "<50.<10", 
+                ifelse(Breitengrad > 50 & Längengrad <= 10 & Breitengrad <= 52, "<52.<10",
+                ifelse(Breitengrad > 52 & Längengrad <= 10, ">52.<10",
+                ifelse(Breitengrad <= 50 & Längengrad > 10, "<50.>10", 
+                ifelse(Breitengrad > 50 & Längengrad > 10 & Breitengrad <= 52, "<52.>10",
+                ifelse(Breitengrad > 52 & Längengrad > 10, ">52.>10", NA)))))))
 
-plot(kd$Breitengrad, kd$Längengrad)'
+ges <- ges %>%
+  mutate(Umsatz = ifelse(Umsatz <= 20000, "<20000",
+                  ifelse(Umsatz > 20000 & Umsatz <= 40000, "20000-40000",
+                  ifelse(Umsatz > 40000 & Umsatz <= 60000, "40000-60000",
+                  ifelse(Umsatz > 60000 & Umsatz <= 80000, "60000-80000",
+                  ifelse(Umsatz > 80000, ">80000",NA))))))
+    
+    
+    
+kd <- ges[-c(1,3,4,13,12,14,15)]
 
-Amodel <- rpart(Prognose ~ ., data = kunden_2016, method = "class")
-plot <- rpart.plot(Amodel)
+kdA <- subset(ges, Prognose == "A")
+kdNA <- subset(ges, Prognose == "NA")
+"Ort Visualisieren:"
+plot(kdA$Breitengrad, kdA$Längengrad)
+plot(kdNA$Breitengrad, kdNA$Längengrad)
 
+
+
+
+
+
+
+table(as.factor(kd$Kundenklasse))
+
+AMarke <- c( sum(kd$Konzernmarken == 1 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 2 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 3 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 4 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 5 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 6 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 7 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 8 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 9 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 10 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 11 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 12 & kd$Prognose == "A"),
+             sum(kd$Konzernmarken == 13 & kd$Prognose == "A"))  
+NAMarke <- c(sum(kd$Konzernmarken == 1 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 2 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 3 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 4 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 5 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 6 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 7 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 8 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 9 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 10 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 11 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 12 & kd$Prognose == "NA"),
+             sum(kd$Konzernmarken == 13& kd$Prognose == "NA"))
+Marke <- data.frame(AMarke,NAMarke)
+Marke
+
+
+table(kd$Konzernmarken, kd$Prognose)
+table(kd$Kundenklasse , kd$Prognose)
+table(kd$Jahr , kd$Prognose)
+table(kd$Quad , kd$Prognose)
 
 
