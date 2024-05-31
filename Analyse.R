@@ -56,7 +56,22 @@ kunden <- bind_rows(kunden_2016, kunden_2017, kunden_2018)
 ges <- left_join(kunden, dplz, "PLZ")
 names(ges)[7] =  "NettoDB"
 
-#Daten diskreter gestalten
+
+
+#                               Klassifikation:
+
+
+
+Klassifikation <- rpart(Kundenklasse ~ Umsatz, data = ges)
+rpart.plot(Klassifikation)
+
+#Es ist klar, dass der Umsatz ausreicht um die momentane Kundenklasse zu klassifizieren
+
+
+#                           Decision tree learner:
+
+
+#Daten Diskret gestalten:
 
 ges <- ges %>%
   mutate(Quad = ifelse(Breitengrad <= 50 & Längengrad <= 10, "<50.<10", 
@@ -83,8 +98,8 @@ ges <- ges %>%
                           ifelse(Preisumsetzung > 5, ">5", NA))))))
     
     
-kd <- ges[-c(1,2,3,4,13,12,14,15)]
-
+kd <- ges %>%
+  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr")
 kdA <- subset(ges, Prognose == "A")
 kdNA <- subset(ges, Prognose == "NA")
 "Ort Visualisieren:"
@@ -92,174 +107,137 @@ plot(kdA$Breitengrad, kdA$Längengrad)
 plot(kdNA$Breitengrad, kdNA$Längengrad)
 
 
-#Hier werden die Daten für die Entropieanalyse 1 vorbereitet:
+#                             Stufenlearner:
 
+#DIE FUNKTION
 
+#"Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad"
+#==============================================================================
+#       1             2        3             4                 5           6
 
 Ent <- function(x,y){
-    return((-1)*x*log(x,2)-y*log(y,2))
+  return((-1)*x*log(x,2)-y*log(y,2))  #Entropieformel
 }
 
-
-EntKonzernmarken1 <- as.data.frame.matrix(table(kd$Konzernmarken, kd$Prognose)) %>%
-  mutate(Typ = "Konzernmarken")
-EntKundenklasse1 <- as.data.frame.matrix(table(kd$Kundenklasse , kd$Prognose)) %>%
-  mutate(Typ = "Kundenklasse")
-EntQuad1 <- as.data.frame.matrix(table(kd$Quad , kd$Prognose)) %>%
-  mutate(Typ = "Quad")
-EntUmsatz1 <- as.data.frame.matrix(table(kd$Umsatz , kd$Prognose)) %>%
-  mutate(Typ = "Umsatz")
-EntNettoDb1 <- as.data.frame.matrix(table(kd$NettoDB , kd$Prognose)) %>%
-  mutate(Typ = "NettoDB")
-EntPreisumsetzung1 <- as.data.frame.matrix(table(kd$Preisumsetzung , kd$Prognose)) %>%
-  mutate(Typ = "Preisumsetzung")
-
-
-Entropiedata1 <- bind_rows(EntKundenklasse1,EntKonzernmarken1,EntNettoDb1,
-                          EntPreisumsetzung1,EntQuad1,EntUmsatz1)
-names(Entropiedata1)[2] =  "notA"
-
-#Hier werden Entropiedaten Stufe 1 ausgerechnet:
-
-Entropiedata1 <- Entropiedata1 %>%
-  mutate(Anteil = (A+notA)) %>%
-  mutate(p1 = A/(A + notA)) %>%
-  mutate(p2 = 1-p1) %>%
-  mutate(Entropie = Ent(p1,p2)) %>%
-  group_by(Typ) %>%
-  mutate(gesamt = (sum(A)+sum(notA))) %>%
-  ungroup() %>%
-  mutate(Entropieanteil = Anteil/gesamt*Entropie)
-
-Entropietest1 <- Entropiedata1 %>%
-  group_by(Typ) %>%
-  summarise(Gesamtentropie = sum(Entropieanteil),
-            Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
-                                 sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil)) %>%
-  arrange(desc(Entropiegewinn))
-
-#Hier wird Stufe 2 vorbereitet unter der verwendung von Konzernmarken als Stufe 1
-#funktion erstellen
-
-entData2 <- function(daten,name){
+empirietest <- function(daten,spalte){
   
-  EntKundenklasse <- as.data.frame.matrix(table(daten$Kundenklasse , daten$Prognose)) %>%
-    mutate(Typ = "Kundenklasse")
-  EntQuad <- as.data.frame.matrix(table(daten$Quad , daten$Prognose)) %>%
-    mutate(Typ = "Quad")
-  EntUmsatz <- as.data.frame.matrix(table(daten$Umsatz , daten$Prognose)) %>%
-    mutate(Typ = "Umsatz")
-  EntNettoDb <- as.data.frame.matrix(table(daten$NettoDB , daten$Prognose)) %>%
-    mutate(Typ = "NettoDB")
-  EntPreisumsetzung <- as.data.frame.matrix(table(daten$Preisumsetzung , daten$Prognose)) %>%
-    mutate(Typ = "Preisumsetzung")
+  if(spalte > 6){
+    print("Fehler bei Spalteneingabe")&
+    return("Fehler bei Spalteneingabe")}
   
   
-  Entropiedata <- bind_rows(EntKundenklasse,EntNettoDb,
-                            EntPreisumsetzung,EntQuad,EntUmsatz)
-  names(Entropiedata)[2] =  "notA"
-  
-  return(Entropiedata)
-  
+  ifelse(spalte > 0,{
+    
+    #bearbeitungsready machen
+    
+    Varlist <- unique(daten[spalte])
+    j <- as.numeric(count(Varlist))
+    daten <- daten %>%
+      mutate("spaltenname" = daten[spalte])
+    
+    #daten aufgrund der richtigen Spalte aufteilen
+    
+    for (i in 1:j) {
+    
+      x <- as.character(Varlist[i,])
+     print(x)
+    
+     partdata <- subset(daten,daten$spaltenname == x)
+     
+      EntKonzernmarken <- as.data.frame.matrix(table(partdata$Konzernmarken, partdata$Prognose)) %>%
+       mutate(Typ = "Konzernmarken")
+     EntKundenklasse <- as.data.frame.matrix(table(partdata$Kundenklasse , partdata$Prognose)) %>%
+       mutate(Typ = "Kundenklasse")
+     EntQuad <- as.data.frame.matrix(table(partdata$Quad , partdata$Prognose)) %>%
+       mutate(Typ = "Quad")
+     EntUmsatz <- as.data.frame.matrix(table(partdata$Umsatz , partdata$Prognose)) %>%
+        mutate(Typ = "Umsatz")
+     EntNettoDb <- as.data.frame.matrix(table(partdata$NettoDB , partdata$Prognose)) %>%
+        mutate(Typ = "NettoDB")
+      EntPreisumsetzung <- as.data.frame.matrix(table(partdata$Preisumsetzung , partdata$Prognose)) %>%
+        mutate(Typ = "Preisumsetzung")
+    
+    
+     Entropiepardata <- bind_rows(EntKundenklasse,EntKonzernmarken,EntNettoDb,
+                              EntPreisumsetzung,EntQuad,EntUmsatz) %>%
+        mutate(splitfactor = x)
+    
+      names(Entropiepardata)[2] =  "notA"
+    
+    
+      
+      Entropiepardata <- Entropiepardata %>%
+       mutate(Anteil = (A+notA)) %>%
+        mutate(p1 = A/(A + notA)) %>%
+        mutate(p2 = 1-p1) %>%
+       mutate(Entropie = Ent(p1,p2)) %>%
+        group_by(Typ) %>%
+        mutate(gesamt = (sum(A)+sum(notA))) %>%
+        ungroup()
+      print(Entropiepardata)
+      Entropiepardata$Entropie[is.nan(Entropiepardata$Entropie)] <- 0
+      Entropiepardata <- Entropiepardata %>%
+        mutate(Entropieanteil = (Anteil/gesamt)*Entropie)
+    
+      Entropietest <- Entropiepardata %>%
+        group_by(Typ) %>%
+        summarise(Gesamtentropie = sum(Entropieanteil),
+                Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                     sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil)) %>%
+        arrange(desc(Entropiegewinn))
+      names(Entropietest) = c("Typ",paste("Gesamtentropie bei", x),paste("Entropiegewinn bei", x))
+    
+    ifelse(i == 1,
+           fuldata <- Entropietest,
+           fuldata <- full_join(fuldata,Entropietest,by = "Typ"))
+  }
+    return(fuldata)
+    },{
+      
+      EntKonzernmarken1 <- as.data.frame.matrix(table(daten$Konzernmarken, daten$Prognose)) %>%
+        mutate(Typ = "Konzernmarken")
+      EntKundenklasse1 <- as.data.frame.matrix(table(daten$Kundenklasse , daten$Prognose)) %>%
+        mutate(Typ = "Kundenklasse")
+      EntQuad1 <- as.data.frame.matrix(table(daten$Quad , daten$Prognose)) %>%
+        mutate(Typ = "Quad")
+      EntUmsatz1 <- as.data.frame.matrix(table(daten$Umsatz , daten$Prognose)) %>%
+        mutate(Typ = "Umsatz")
+      EntNettoDb1 <- as.data.frame.matrix(table(daten$NettoDB , daten$Prognose)) %>%
+        mutate(Typ = "NettoDB")
+      EntPreisumsetzung1 <- as.data.frame.matrix(table(daten$Preisumsetzung , daten$Prognose)) %>%
+        mutate(Typ = "Preisumsetzung")
+      
+      
+      Entropiedata1 <- bind_rows(EntKundenklasse1,EntKonzernmarken1,EntNettoDb1,
+                                 EntPreisumsetzung1,EntQuad1,EntUmsatz1)
+      names(Entropiedata1)[2] =  "notA"
+      
+      Entropiedata1 <- Entropiedata1 %>%
+        mutate(Anteil = (A+notA)) %>%
+        mutate(p1 = A/(A + notA)) %>%
+        mutate(p2 = 1-p1) %>%
+        mutate(Entropie = Ent(p1,p2)) %>%
+        group_by(Typ) %>%
+        mutate(gesamt = (sum(A)+sum(notA))) %>%
+        ungroup() %>%
+        mutate(Entropieanteil = Anteil/gesamt*Entropie)
+      
+      Entropietest1 <- Entropiedata1 %>%
+        group_by(Typ) %>%
+        summarise(Gesamtentropie = sum(Entropieanteil),
+                  Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                       sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil)) %>%
+        arrange(desc(Entropiegewinn))
+      
+      return(Entropietest1)
+      
+    })
+
 }
-entropieanalyse <- function(daten){
-
-  Entropiedata <- daten %>%
-    mutate(Anteil = (A+notA)) %>%
-    mutate(p1 = A/(A + notA)) %>%
-    mutate(p2 = 1-p1) %>%
-    mutate(Entropie = Ent(p1,p2)) %>%
-    group_by(Typ) %>%
-    mutate(gesamt = (sum(A)+sum(notA))) %>%
-    ungroup()
-  Entropiedata$Entropie[is.nan(Entropiedata$Entropie)] <- 0
-    Entropiedata <- Entropiedata %>%
-    mutate(Entropieanteil = (Anteil/gesamt)*Entropie)
-
-  Entropietest <- Entropiedata %>%
-    group_by(Typ) %>%
-    summarise(Gesamtentropie = sum(Entropieanteil),
-            Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
-                                 sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil)) %>%
-    arrange(desc(Entropiegewinn))
-
-  return(Entropietest)
-}
-  
-#anwednung der funktion
+test <- empirietest(kd,0)
 
 
-kd2_1 <- subset(kd,Konzernmarken == 1)
-kd2_2 <- subset(kd,Konzernmarken == 2)
-kd2_3 <- subset(kd,Konzernmarken == 3)
-kd2_4 <- subset(kd,Konzernmarken == 4)
-kd2_5 <- subset(kd,Konzernmarken == 5)
-kd2_6 <- subset(kd,Konzernmarken == 6)
-kd2_7 <- subset(kd,Konzernmarken == 7)
-kd2_8 <- subset(kd,Konzernmarken == 8)
-kd2_9 <- subset(kd,Konzernmarken == 9)
-kd2_10 <- subset(kd,Konzernmarken == 10)
-kd2_11 <- subset(kd,Konzernmarken == 11)
-kd2_12 <- subset(kd,Konzernmarken == 12)
-kd2_13 <- subset(kd,Konzernmarken == 13)
 
 
-Entropiedata2_1 <- entData2(kd2_1,"1")
-Entropiedata2_2 <- entData2(kd2_2,"2")
-Entropiedata2_3 <- entData2(kd2_3,"3")
-Entropiedata2_4 <- entData2(kd2_4,"4")
-Entropiedata2_5 <- entData2(kd2_5,"5")
-Entropiedata2_6 <- entData2(kd2_6,"6")
-Entropiedata2_7 <- entData2(kd2_7,"7")
-Entropiedata2_8 <- entData2(kd2_8,"8")
-Entropiedata2_9 <- entData2(kd2_9,"9")
-Entropiedata2_10 <- entData2(kd2_10,"10")
-Entropiedata2_11 <- entData2(kd2_11,"11")
-Entropiedata2_12 <- entData2(kd2_12,"12")
-Entropiedata2_13 <- entData2(kd2_13,"13")
 
 
-  
-Entropietest2_1 <- entropieanalyse(Entropiedata2_1)
-Entropietest2_2 <- entropieanalyse(Entropiedata2_2 )
-Entropietest2_3 <- entropieanalyse(Entropiedata2_3 )
-Entropietest2_4 <- entropieanalyse(Entropiedata2_4 )
-Entropietest2_5 <- entropieanalyse(Entropiedata2_5 )
-Entropietest2_6 <- entropieanalyse(Entropiedata2_6 )
-Entropietest2_7 <- entropieanalyse(Entropiedata2_7)
-Entropietest2_8 <- entropieanalyse(Entropiedata2_8 )
-Entropietest2_9 <- entropieanalyse(Entropiedata2_9 )
-Entropietest2_10 <- entropieanalyse(Entropiedata2_10 )
-Entropietest2_11 <- entropieanalyse(Entropiedata2_11 )
-Entropietest2_12 <- entropieanalyse(Entropiedata2_12 )
-Entropietest2_13 <- entropieanalyse(Entropiedata2_13 )
-
-ErgebnisStufe2 <- cbind(c(1:13),
-           c(Entropietest2_1[1,1],
-             Entropietest2_2[1,1],
-             Entropietest2_3[1,1],
-             Entropietest2_4[1,1],
-             Entropietest2_5[1,1],
-             Entropietest2_6[1,1],
-             Entropietest2_7[1,1],
-             Entropietest2_8[1,1],
-             Entropietest2_9[1,1],
-             Entropietest2_10[1,1],
-             Entropietest2_11[1,1],
-             Entropietest2_12[1,1],
-             Entropietest2_13[1,1]
-             ),
-           c(Entropietest2_1[1,3],
-             Entropietest2_2[1,3],
-             Entropietest2_3[1,3],
-             Entropietest2_4[1,3],
-             Entropietest2_5[1,3],
-             Entropietest2_6[1,3],
-             Entropietest2_7[1,3],
-             Entropietest2_8[1,3],
-             Entropietest2_9[1,3],
-             Entropietest2_10[1,3],
-             Entropietest2_11[1,3],
-             Entropietest2_12[1,3],
-             Entropietest2_13[1,3]
-              ))
