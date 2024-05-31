@@ -102,7 +102,7 @@ kd <- ges %>%
   select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr")
 kdA <- subset(ges, Prognose == "A")
 kdNA <- subset(ges, Prognose == "NA")
-"Ort Visualisieren:"
+#Ort Visualisieren: 
 plot(kdA$Breitengrad, kdA$Längengrad)
 plot(kdNA$Breitengrad, kdNA$Längengrad)
 
@@ -125,8 +125,11 @@ empirietest <- function(daten,spalte){
     print("Fehler bei Spalteneingabe")&
     return("Fehler bei Spalteneingabe")}
   
+  #test ob Typ Null=Initialvorgang
   
   ifelse(spalte > 0,{
+    
+    #######################   Typ 1-6 = Teilrechner   ##########################
     
     #bearbeitungsready machen
     
@@ -164,6 +167,8 @@ empirietest <- function(daten,spalte){
     
       names(Entropiepardata)[2] =  "notA"
     
+      
+      # Daten Analysieren
     
       
       Entropiepardata <- Entropiepardata %>%
@@ -174,7 +179,6 @@ empirietest <- function(daten,spalte){
         group_by(Typ) %>%
         mutate(gesamt = (sum(A)+sum(notA))) %>%
         ungroup()
-      print(Entropiepardata)
       Entropiepardata$Entropie[is.nan(Entropiepardata$Entropie)] <- 0
       Entropiepardata <- Entropiepardata %>%
         mutate(Entropieanteil = (Anteil/gesamt)*Entropie)
@@ -184,15 +188,20 @@ empirietest <- function(daten,spalte){
         summarise(Gesamtentropie = sum(Entropieanteil),
                 Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
                                      sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil)) %>%
-        arrange(desc(Entropiegewinn))
-      names(Entropietest) = c("Typ",paste("Gesamtentropie bei", x),paste("Entropiegewinn bei", x))
+        arrange(desc(Entropiegewinn)) %>%
+        mutate(Auspragung = x)
+      
     
     ifelse(i == 1,
            fuldata <- Entropietest,
-           fuldata <- full_join(fuldata,Entropietest,by = "Typ"))
+           fuldata <- bind_rows(fuldata,Entropietest))
   }
     return(fuldata)
     },{
+      
+      
+      
+      #########################     Typ 0 = Initialrechner   ###########################
       
       EntKonzernmarken1 <- as.data.frame.matrix(table(daten$Konzernmarken, daten$Prognose)) %>%
         mutate(Typ = "Konzernmarken")
@@ -234,10 +243,328 @@ empirietest <- function(daten,spalte){
     })
 
 }
-test <- empirietest(kd,0)
+
+
+
+Empirietest_0 <- empirietest(kd,0)
+
+
+
+Empirietest_1 <- empirietest(kd,1)
+
+
+################################################################################
+########################    final learner model    #############################
+################################################################################
 
 
 
 
+dectreelearner <- function(daten){
+  
+  lu <- c("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad") 
+  
+  cdat <- daten
+  
+  u <- 1
+  v <- 1
+  w <- 1
+  x <- 1
+  y <- 1
+  z <- 1
+  a <- 0
+  b <- 0
+  c <- 0
+  d <- 0
+  e <- 0
+  f <- 0
+  
+  #                          Stufe 0
+  
+  
+  EntKonzernmarkenA <- as.data.frame.matrix(table(cdat$Konzernmarken, cdat$Prognose)) %>%
+    mutate(Typ = "Konzernmarken")%>%
+    mutate(Auspragung = row.names(table(cdat$Konzernmarken, cdat$Prognose)))
+  EntKundenklasseA <- as.data.frame.matrix(table(cdat$Kundenklasse , cdat$Prognose)) %>%
+    mutate(Typ = "Kundenklasse") %>%
+  mutate(Auspragung = row.names(table(cdat$Kundenklasse , cdat$Prognose)))
+  EntQuadA <- as.data.frame.matrix(table(cdat$Quad , cdat$Prognose)) %>%
+    mutate(Typ = "Quad") %>%
+    mutate(Auspragung = row.names(table(cdat$Quad , cdat$Prognose)))
+  EntUmsatzA <- as.data.frame.matrix(table(cdat$Umsatz , cdat$Prognose)) %>%
+    mutate(Typ = "Umsatz") %>%
+    mutate(Auspragung = row.names(table(cdat$Umsatz , cdat$Prognose)))
+  EntNettoDbA <- as.data.frame.matrix(table(cdat$NettoDB , cdat$Prognose)) %>%
+    mutate(Typ = "NettoDB") %>%
+    mutate(Auspragung = row.names(table(cdat$NettoDB , cdat$Prognose)))
+  EntPreisumsetzungA <- as.data.frame.matrix(table(cdat$Preisumsetzung , cdat$Prognose)) %>%
+    mutate(Typ = "Preisumsetzung") %>%
+    mutate(Auspragung = row.names(table(cdat$Preisumsetzung , cdat$Prognose)))
+  
+  
+  EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                             EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+  names(EntropiedataA)[2] =  "notA"
+  
+  EntropiedataA <- EntropiedataA%>%
+    mutate(teil = (A+notA)) %>%
+    mutate(p1 = A/(A + notA)) %>%
+    mutate(p2 = 1-p1) %>%
+    mutate(Entropie = Ent(p1,p2)) %>%
+    group_by(Typ) %>%
+    mutate(gesamt = (sum(A)+sum(notA))) %>%
+    ungroup()
+    EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+    EntropiedataA <- EntropiedataA %>%
+    mutate(Anteil = teil/gesamt) %>%
+    mutate(Entropieanteil = Anteil*Entropie)
+  
+  EntropiesumA <- EntropiedataA %>%
+    group_by(Typ) %>%
+    summarise(Gesamtentropie = sum(Entropieanteil),
+              Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                   sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+    arrange(desc(Entropiegewinn))
+  
+  best0 <- as.character(EntropiesumA[1,1])
+  
+  erg0 <- EntropiedataA %>%
+    filter(Typ == best0) %>%
+    select("Typ","Auspragung","p1","Anteil") %>%
+    mutate(Stufe = 0) %>%
+    mutate(aupreg = 1) %>% 
+    mutate(ID = paste(f,e,d,c,b,a))
+  
+  ERG <- erg0
+  
+  Index <- which(lu == best0)
+  
+  
+  varlist <- unique(cdat[Index])
+  
+  
+  u <- as.numeric(count(varlist))
+  cdat <- cdat %>%
+    mutate("spalte" = cdat[Index])
+  
+  
+  #                           Stufe 1
+  
+  
+  for(a in 10:u) {  ###########ACHTRun
+    
+    b <- 0
+    c <- 0
+    d <- 0
+    e <- 0
+    f <- 0
+    
+    
+    K <- as.character(varlist[a,])
+    Acdat <- subset(cdat,cdat$spalte == K)
+    
+    if(!("A" %in% Acdat$Prognose)){
+      next
+    }
+    
+    EntKonzernmarkenA <- as.data.frame.matrix(table(Acdat$Konzernmarken, Acdat$Prognose)) %>%
+      mutate(Typ = "Konzernmarken")%>%
+      mutate(Auspragung = row.names(table(Acdat$Konzernmarken, Acdat$Prognose)))
+    EntKundenklasseA <- as.data.frame.matrix(table(Acdat$Kundenklasse , Acdat$Prognose)) %>%
+      mutate(Typ = "Kundenklasse") %>%
+      mutate(Auspragung = row.names(table(Acdat$Kundenklasse , Acdat$Prognose)))
+    EntQuadA <- as.data.frame.matrix(table(Acdat$Quad , Acdat$Prognose)) %>%
+      mutate(Typ = "Quad") %>%
+      mutate(Auspragung = row.names(table(Acdat$Quad , Acdat$Prognose)))
+    EntUmsatzA <- as.data.frame.matrix(table(Acdat$Umsatz , Acdat$Prognose)) %>%
+      mutate(Typ = "Umsatz") %>%
+      mutate(Auspragung = row.names(table(Acdat$Umsatz , Acdat$Prognose)))
+    EntNettoDbA <- as.data.frame.matrix(table(Acdat$NettoDB , Acdat$Prognose)) %>%
+      mutate(Typ = "NettoDB") %>%
+      mutate(Auspragung = row.names(table(Acdat$NettoDB , Acdat$Prognose)))
+    EntPreisumsetzungA <- as.data.frame.matrix(table(Acdat$Preisumsetzung , Acdat$Prognose)) %>%
+      mutate(Typ = "Preisumsetzung") %>%
+      mutate(Auspragung = row.names(table(Acdat$Preisumsetzung , Acdat$Prognose)))
+    
+    
+    EntropiedataA <- bind_rows(Ground,EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                               EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+    names(EntropiedataA)[2] =  "notA"
+    
+    
+    
+    
+    EntropiedataA <- EntropiedataA%>%
+      mutate(teil = (A+notA)) %>%
+      mutate(p1 = A/(A + notA)) %>%
+      mutate(p2 = 1-p1) %>%
+      mutate(Entropie = Ent(p1,p2)) %>%
+      group_by(Typ) %>%
+      mutate(gesamt = (sum(A)+sum(notA))) %>%
+      ungroup()
+      EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+      EntropiedataA <- EntropiedataA %>%
+      mutate(Anteil = teil/gesamt) %>%
+      mutate(Entropieanteil = Anteil*Entropie)
+    
+    EntropiesumA <- EntropiedataA %>%
+      group_by(Typ) %>%
+      summarise(Gesamtentropie = sum(Entropieanteil),
+                Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                     sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+      arrange(desc(Entropiegewinn))
+    
+    
+    bestA <- as.character(EntropiesumA[1,1])
+    
+    ergA <- EntropiedataA %>%
+      filter(Typ == bestA) %>%
+      select("Typ","Auspragung","p1","Anteil") %>%
+      mutate(Stufe = 1) %>%
+      mutate(aupreg = a) %>% 
+      mutate(ID = paste(f,e,d,c,b,a))
+    
+    IndexA <- which(lu == bestA)
+    
+    
+    varlistA <- unique(Acdat[IndexA])
+    
+    
+    
+    v <- as.numeric(count(varlistA))
+    Acdat <- Acdat %>%
+      mutate("spalte" = Acdat[IndexA])
+    
+    ERG <- bind_rows(ERG, ergA)
+    
+    
+    #                                Stufe 2
+    
+    for(b in 6:v) { ##################################achtung
+      
+      
+      c <- 0
+      d <- 0
+      e <- 0
+      f <- 0
+      
+      B <- as.character(varlistA[b,])
+      Bcdat <- subset(Acdat,Acdat$spalte == B)
+      
+      if(!("A" %in% Bcdat$Prognose)){
+        next
+      }
+      
+      return(Bcdat)
+      
+      
+      
+      EntKonzernmarkenA <- as.data.frame.matrix(table(Bcdat$Konzernmarken, Bcdat$Prognose)) %>%
+        mutate(Typ = "Konzernmarken")%>%
+        mutate(Auspragung = row.names(table(Bcdat$Konzernmarken, Bcdat$Prognose)))
+      EntKundenklasseA <- as.data.frame.matrix(table(Bcdat$Kundenklasse , Bcdat$Prognose)) %>%
+        mutate(Typ = "Kundenklasse") %>%
+        mutate(Auspragung = row.names(table(Bcdat$Kundenklasse , Bcdat$Prognose)))
+      EntQuadA <- as.data.frame.matrix(table(Bcdat$Quad , Bcdat$Prognose)) %>%
+        mutate(Typ = "Quad") %>%
+        mutate(Auspragung = row.names(table(Bcdat$Quad , Bcdat$Prognose)))
+      EntUmsatzA <- as.data.frame.matrix(table(Bcdat$Umsatz , Bcdat$Prognose)) %>%
+        mutate(Typ = "Umsatz") %>%
+        mutate(Auspragung = row.names(table(Bcdat$Umsatz , Bcdat$Prognose)))
+      EntNettoDbA <- as.data.frame.matrix(table(Bcdat$NettoDB , Bcdat$Prognose)) %>%
+        mutate(Typ = "NettoDB") %>%
+        mutate(Auspragung = row.names(table(Bcdat$NettoDB , Bcdat$Prognose)))
+      EntPreisumsetzungA <- as.data.frame.matrix(table(Bcdat$Preisumsetzung , Bcdat$Prognose)) %>%
+        mutate(Typ = "Preisumsetzung") %>%
+        mutate(Auspragung = row.names(table(Bcdat$Preisumsetzung , Bcdat$Prognose)))
+      
+      
+      EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                                 EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+      names(EntropiedataA)[2] =  "notA"
+      
+      
+      EntropiedataA <- EntropiedataA %>%
+        mutate(teil = (A+notA)) %>%
+        mutate(p1 = A/(A + notA)) %>%
+        mutate(p2 = 1-p1) %>%
+        mutate(Entropie = Ent(p1,p2)) %>%
+        group_by(Typ) %>%
+        mutate(gesamt = (sum(A)+sum(notA))) %>%
+        ungroup()
+      EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+      EntropiedataA <- EntropiedataA %>%
+        mutate(Anteil = teil/gesamt) %>%
+        mutate(Entropieanteil = Anteil*Entropie)
+      
+      EntropiesumA <- EntropiedataA %>%
+        group_by(Typ) %>%
+        summarise(Gesamtentropie = sum(Entropieanteil),
+                  Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                       sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+        arrange(desc(Entropiegewinn))
+      
+      
+      bestB <- as.character(EntropiesumA[1,1])
+      
+      ergB <- EntropiedataA %>%
+        filter(Typ == bestB) %>%
+        select("Typ","Auspragung","p1","Anteil") %>%
+        mutate(Stufe = 2) %>%
+        mutate(aupreg = b + u*(a-1)) %>% 
+        mutate(ID = paste(f,e,d,c,b,a))
+      
+      IndexB <- which(lu == bestB)
+      
+      
+      varlistB <- unique(Bcdat[IndexB])
+      
+      
+      
+      w <- as.numeric(count(varlistB))
+      Bcdat <- Bcdat %>%
+        mutate("spalte" = Bcdat[IndexB])
+      
+      ERG <- bind_rows(ERG, ergB)
+      
+      print(bestB)
+      
+      for(c in 1:w) {
+        
+        d <- 0
+        e <- 0
+        f <- 0
+        
+        for(d in 1:x) {
+          
+          e <- 0
+          f <- 0
+          
+          for(e in 1:y) {
+            
+          
+            f <- 0
+            
+            for(f in 1:z) {
+      
+              
+      
+      
+      
+            }
+          }
+        } 
+      }   
+    }     
+  }
+  
+  return(ERG)
+}
+
+
+test<- dectreelearner(kd)
+
+EntKonzernmarkenA <- as.data.frame.matrix(table(kd$Umsatz, kd$Prognose)) %>%
+  mutate(Auspragung = row.names(table(kd$Umsatz, kd$Prognose))) 
 
 
