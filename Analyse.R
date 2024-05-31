@@ -14,6 +14,7 @@ library(caret)
 library(Boruta)
 library(cvms)
 library(dplyr)
+library(arulesCBA)
 
 is.nan.data.frame <- function(x)
   do.call(cbind, lapply(x, is.nan))
@@ -72,6 +73,196 @@ rpart.plot(Klassifikation)
 
 
 #Daten Diskret gestalten:
+############################# Das große Ausprobieren ###########################
+
+gesA <- ges %>%
+  filter(Prognose == "A")
+gesNA <- ges %>%
+  filter(Prognose == "NA")
+
+#                     Umsatz
+
+Erg <- data.frame(breaks = c(2:13),
+                  differenz1 = rep(0,12))
+                 
+x <- 2
+
+for (x in 2:13) {
+    
+  
+    Diskret_test <- data.frame(dataA = discretize(gesA$Umsatz, method = "cluster", breaks = x,onlycuts = TRUE),
+                       dataNA = discretize(gesNA$Umsatz, method = "cluster", breaks = x,onlycuts = TRUE),
+                       Index = x) %>%
+      filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+      mutate(differenz = dataNA - dataA) 
+    Erg[x-1,2] = mean(abs(Diskret_test$differenz))
+    print(Diskret_test)
+  }
+
+plot(Erg$differenz1, type = "l")
+
+
+Erg <- data.frame(breaks = c(2:13),
+                  differenz1 = rep(0,12))
+x <- 2
+for (x in 2:13) {
+    
+    
+    Diskret_test <- data.frame(dataA = discretize(gesA$Umsatz, breaks = x,onlycuts = TRUE),
+                               dataNA = discretize(gesNA$Umsatz, breaks = x,onlycuts = TRUE),
+                               Index = x) %>%
+      filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+      mutate(differenz = dataNA - dataA) 
+    Erg[x-1,2] = mean(abs(Diskret_test$differenz))
+}
+plot(Erg$breaks,Erg$differenz1, type = "l")
+
+
+hist(ges$Umsatz, breaks = 20, main = "Frequency")
+abline(v = discretize(gesA$Umsatz, breaks = 5, 
+                      onlycuts = TRUE), col = "red")
+abline(v = discretize(gesNA$Umsatz, breaks = 5, 
+                      onlycuts = TRUE), col = "blue")
+abline(v = discretize(ges$Umsatz, breaks = 5, 
+                      onlycuts = TRUE), col = "green")
+
+
+#                         NettoDB
+
+
+ErgNettoDb <- data.frame(breaks = c(2:13),
+                  differenz1 = rep(0,12))
+x <- 2
+for (x in 2:13) {
+  
+  Diskret_test <- data.frame(dataA = discretize(gesA$NettoDB, breaks = x,onlycuts = TRUE),
+                             dataNA = discretize(gesNA$NettoDB, breaks = x,onlycuts = TRUE),
+                             Index = x) %>%
+    filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+    mutate(differenz = dataNA - dataA) 
+  ErgNettoDb[x-1,2] = mean(abs(Diskret_test$differenz))
+}
+plot(Erg$breaks,ErgNettoDb$differenz1, type = "l")
+
+
+Diskret_testNettoDB3 <- data.frame(dataA = discretize(gesA$NettoDB, breaks = 3,onlycuts = TRUE),
+                                   dataNA = discretize(gesNA$NettoDB, breaks = 3,onlycuts = TRUE))%>%
+  filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+  mutate(differenz = dataNA - dataA)
+Diskret_testNettoDB5 <- data.frame(dataA = discretize(gesA$NettoDB, breaks = 5,onlycuts = TRUE),
+                                   dataNA = discretize(gesNA$NettoDB, breaks = 5,onlycuts = TRUE))%>%
+  filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+  mutate(differenz = dataNA - dataA)
+Diskret_testNettoDB10 <- data.frame(dataA = discretize(gesA$NettoDB, breaks = 10,onlycuts = TRUE),
+                                    dataNA = discretize(gesNA$NettoDB, breaks = 10,onlycuts = TRUE))%>%
+  filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+  mutate(differenz = dataNA - dataA)
+
+#                         Preisumsetzung
+
+hist(gesA$Preisumsetzung, breaks = 20, main = "Preisumsetzung A")
+hist(gesNA$Preisumsetzung, breaks = 20, main = "Preisumsetzung NA")
+abline(v = discretize(gesA$Preisumsetzung, breaks = 6, 
+                      onlycuts = TRUE), col = "red")
+abline(v = discretize(gesNA$Preisumsetzung, breaks = 6, 
+                      onlycuts = TRUE), col = "blue")
+abline(v = discretize(ges$Preisumsetzung, breaks = 6, 
+                      onlycuts = TRUE), col = "green")
+
+
+ErgPreisumsetzung <- data.frame(breaks = c(2:13),
+                         differenz1 = rep(0,12))
+x <- 2
+for (x in 2:13) {
+  
+  Diskret_test <- data.frame(dataA = discretize(gesA$Preisumsetzung, breaks = x,onlycuts = TRUE),
+                             dataNA = discretize(gesNA$Preisumsetzung, breaks = x,onlycuts = TRUE),
+                             Index = x) %>%
+    filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+    mutate(differenz = dataNA - dataA) 
+  ErgPreisumsetzung[x-1,2] = mean(abs(Diskret_test$differenz))
+}
+plot(ErgPreisumsetzung$breaks,ErgPreisumsetzung$differenz1, type = "l")
+
+Diskret_testPreis1 <- data.frame(dataA = discretize(gesA$Preisumsetzung, breaks = 3,onlycuts = TRUE),
+                                   dataNA = discretize(gesNA$Preisumsetzung, breaks = 3,onlycuts = TRUE))%>%
+  filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+  mutate(differenz = dataNA - dataA)
+Diskret_testPreis2 <- data.frame(dataA = discretize(gesA$Preisumsetzung, breaks = 6,onlycuts = TRUE),
+                                dataNA = discretize(gesNA$Preisumsetzung, breaks = 6,onlycuts = TRUE))%>%
+  filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+  mutate(differenz = dataNA - dataA)
+
+#                             Koordinaten
+
+
+
+
+ErgBreitengrade <- data.frame(breaks = c(2:13),
+                                differenz1 = rep(0,12))
+x <- 2
+for (x in 2:13) {
+  
+  Diskret_test <- data.frame(dataA = discretize(gesA$Breitengrad, breaks = x,onlycuts = TRUE),
+                             dataNA = discretize(gesNA$Breitengrad, breaks = x,onlycuts = TRUE),
+                             Index = x) %>%
+    filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+    mutate(differenz = dataNA - dataA) 
+  ErgBreitengrade[x-1,2] = mean(abs(Diskret_test$differenz))
+}
+plot(ErgBreitengrade$breaks,ErgBreitengrade$differenz1, type = "l")
+
+ErgLänge <- data.frame(breaks = c(2:13),
+                              differenz1 = rep(0,12))
+x <- 2
+for (x in 2:13) {
+  
+  Diskret_test <- data.frame(dataA = discretize(gesA$Längengrad, breaks = x,onlycuts = TRUE),
+                             dataNA = discretize(gesNA$Längengrad, breaks = x,onlycuts = TRUE),
+                             Index = x) %>%
+    filter(dataA != max(dataA) & dataA != min(dataA)) %>%
+    mutate(differenz = dataNA - dataA) 
+  ErgLänge[x-1,2] = mean(abs(Diskret_test$differenz))
+}
+plot(ErgLänge$breaks,ErgLänge$differenz1, type = "l")
+
+
+z <- 2
+plot(gesA$Breitengrad, gesA$Längengrad, breaks = 20, main = "Breitengrade")
+abline(v = discretize(gesA$Breitengrad, breaks = z, 
+                      onlycuts = TRUE), col = "red")
+abline(v = discretize(gesNA$Breitengrad, breaks = z, 
+                      onlycuts = TRUE), col = "blue")
+abline(h = discretize(gesA$Längengrad, breaks = z, 
+                      onlycuts = TRUE), col = "red")
+abline(h = discretize(gesNA$Längengrad, breaks = z, 
+                      onlycuts = TRUE), col = "blue")
+abline(v = discretize(ges$Breitengrad, breaks = z, 
+                      onlycuts = TRUE), col = "green")
+abline(h = discretize(ges$Längengrad, breaks = z, 
+                      onlycuts = TRUE), col = "green")
+
+Breitgr <- (discretize(ges$Breitengrad, breaks = 2, onlycuts = TRUE))[2]
+Längengr <- (discretize(ges$Längengrad, breaks = 2,onlycuts = TRUE))[2]
+
+
+
+#                       Diskretisieren abschließen
+
+gesDisc <- discretizeDF(ges, methods = list(
+                      Umsatz = list(method = "frequency", breaks = 5),
+                      NettoDB = list(method = "frequency", breaks = 5),
+                      Preisumsetzung = list(method = "frequency", breaks = 6)),
+                      default = list(method = "none"))
+
+
+
+
+gesDisc <- gesDisc %>%
+  mutate(Quad = ifelse(Breitengrad <= Breitgr & Längengrad <= Längengr, "<50,2724/<9,7901", 
+                ifelse(Breitengrad > Breitgr & Längengrad <= Längengr, ">50,2724/<9,7901",
+                ifelse(Breitengrad <= Breitgr & Längengrad > Längengr, "50,2724/>9,7901", 
+                ifelse(Breitengrad > Breitgr & Längengrad > Längengr, ">50,2724/>9,7901", NA)))))
 
 ges <- ges %>%
   mutate(Quad = ifelse(Breitengrad <= 50 & Längengrad <= 10, "<50.<10", 
@@ -98,13 +289,11 @@ ges <- ges %>%
                           ifelse(Preisumsetzung > 5, ">5", NA))))))
     
     
+kddisc <- gesDisc %>%
+  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr")
+
 kd <- ges %>%
   select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr")
-kdA <- subset(ges, Prognose == "A")
-kdNA <- subset(ges, Prognose == "NA")
-#Ort Visualisieren: 
-plot(kdA$Breitengrad, kdA$Längengrad)
-plot(kdNA$Breitengrad, kdNA$Längengrad)
 
 
 #                             Stufenlearner:
@@ -405,7 +594,7 @@ dectreelearner <- function(daten){
       mutate(Auspragung = row.names(table(Acdat$Preisumsetzung , Acdat$Prognose)))
     
     
-    EntropiedataA <- bind_rows(Ground,EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+    EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
                                EntPreisumsetzungA,EntQuadA,EntUmsatzA)
     names(EntropiedataA)[2] =  "notA"
     
@@ -565,7 +754,7 @@ dectreelearner <- function(daten){
       
       ERG <- bind_rows(ERG, ergB)
       
-      print(bestB)
+      #                           Stufe 3
       
       for(c in 1:w) {
         
@@ -573,22 +762,409 @@ dectreelearner <- function(daten){
         e <- 0
         f <- 0
         
+        C <- as.character(varlistB[c,])
+        Ccdat <- subset(Bcdat,Bcdat$spalte == C)
+        
+        
+        if(!("A" %in% Ccdat$Prognose)){
+          ergC <- data.frame(Typ = bestB,
+                             Auspragung = "Fertig",
+                             p1 = 0.0,
+                             Anteil= 1.0,
+                             Stufe = 3,
+                             aupreg = c + v*(b-1),
+                             ID= paste(f,e,d,c,b,a),
+                             Entropie = 0)
+          ERG <- bind_rows(ERG, ergC)
+          next}
+        if(!("NA" %in% Ccdat$Prognose)){
+          ergC <- data.frame(Typ = bestB,
+                             Auspragung = "Fertig",
+                             p1 = 1.0,
+                             Anteil= 1.0,
+                             Stufe = 3,
+                             aupreg = c + v*(b-1),
+                             ID= paste(f,e,d,c,b,a),
+                             Entropie = 0)
+          ERG <- bind_rows(ERG, ergC)
+          next
+        }
+        
+        
+        
+        
+        EntKonzernmarkenA <- as.data.frame.matrix(table(Ccdat$Konzernmarken, Ccdat$Prognose)) %>%
+          mutate(Typ = "Konzernmarken")%>%
+          mutate(Auspragung = row.names(table(Ccdat$Konzernmarken, Ccdat$Prognose)))
+        EntKundenklasseA <- as.data.frame.matrix(table(Ccdat$Kundenklasse , Ccdat$Prognose)) %>%
+          mutate(Typ = "Kundenklasse") %>%
+          mutate(Auspragung = row.names(table(Ccdat$Kundenklasse , Ccdat$Prognose)))
+        EntQuadA <- as.data.frame.matrix(table(Ccdat$Quad , Ccdat$Prognose)) %>%
+          mutate(Typ = "Quad") %>%
+          mutate(Auspragung = row.names(table(Ccdat$Quad , Ccdat$Prognose)))
+        EntUmsatzA <- as.data.frame.matrix(table(Ccdat$Umsatz , Ccdat$Prognose)) %>%
+          mutate(Typ = "Umsatz") %>%
+          mutate(Auspragung = row.names(table(Ccdat$Umsatz , Ccdat$Prognose)))
+        EntNettoDbA <- as.data.frame.matrix(table(Ccdat$NettoDB , Ccdat$Prognose)) %>%
+          mutate(Typ = "NettoDB") %>%
+          mutate(Auspragung = row.names(table(Ccdat$NettoDB , Ccdat$Prognose)))
+        EntPreisumsetzungA <- as.data.frame.matrix(table(Ccdat$Preisumsetzung , Ccdat$Prognose)) %>%
+          mutate(Typ = "Preisumsetzung") %>%
+          mutate(Auspragung = row.names(table(Ccdat$Preisumsetzung , Ccdat$Prognose)))
+        
+        
+        EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                                   EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+        names(EntropiedataA)[2] =  "notA"
+        
+        
+        EntropiedataA <- EntropiedataA %>%
+          mutate(teil = (A+notA)) %>%
+          mutate(p1 = A/(A + notA)) %>%
+          mutate(p2 = 1-p1) %>%
+          mutate(Entropie = Ent(p1,p2)) %>%
+          group_by(Typ) %>%
+          mutate(gesamt = (sum(A)+sum(notA))) %>%
+          ungroup()
+        EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+        EntropiedataA <- EntropiedataA %>%
+          mutate(Anteil = teil/gesamt) %>%
+          mutate(Entropieanteil = Anteil*Entropie)
+        
+        EntropiesumA <- EntropiedataA %>%
+          group_by(Typ) %>%
+          summarise(Gesamtentropie = sum(Entropieanteil),
+                    Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                         sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+          arrange(desc(Entropiegewinn))
+        
+        
+        bestC <- as.character(EntropiesumA[1,1])
+        
+        ergC <- EntropiedataA %>%
+          filter(Typ == bestC) %>%
+          select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+          mutate(Stufe = 3) %>%
+          mutate(aupreg = c + v*(b-1)) %>% 
+          mutate(ID = paste(f,e,d,c,b,a))
+        
+        IndexC <- which(lu == bestC)
+        
+        
+        varlistC <- unique(Bcdat[IndexC])
+        
+        
+        
+        x <- as.numeric(count(varlistC))
+        Ccdat <- Ccdat %>%
+          mutate("spalte" = Ccdat[IndexC])
+        
+        ERG <- bind_rows(ERG, ergC)
+        
+        
         for(d in 1:x) {
           
           e <- 0
           f <- 0
           
+          D <- as.character(varlistB[d,])
+          Dcdat <- subset(Ccdat,Ccdat$spalte == D)
+          
+          
+          if(!("A" %in% Dcdat$Prognose)){
+            ergD <- data.frame(Typ = bestC,
+                               Auspragung = "Fertig",
+                               p1 = 0.0,
+                               Anteil= 1.0,
+                               Stufe = 4,
+                               aupreg = d + w*(c-1),
+                               ID= paste(f,e,d,c,b,a),
+                               Entropie = 0)
+            ERG <- bind_rows(ERG, ergD)
+            next}
+          if(!("NA" %in% Dcdat$Prognose)){
+            ergD <- data.frame(Typ = bestC,
+                               Auspragung = "Fertig",
+                               p1 = 1.0,
+                               Anteil= 1.0,
+                               Stufe = 4,
+                               aupreg = d + w*(c-1),
+                               ID= paste(f,e,d,c,b,a),
+                               Entropie = 0)
+            ERG <- bind_rows(ERG, ergD)
+            next
+          }
+          
+          
+          
+          
+          EntKonzernmarkenA <- as.data.frame.matrix(table(Dcdat$Konzernmarken, Dcdat$Prognose)) %>%
+            mutate(Typ = "Konzernmarken")%>%
+            mutate(Auspragung = row.names(table(Dcdat$Konzernmarken, Dcdat$Prognose)))
+          EntKundenklasseA <- as.data.frame.matrix(table(Dcdat$Kundenklasse , Dcdat$Prognose)) %>%
+            mutate(Typ = "Kundenklasse") %>%
+            mutate(Auspragung = row.names(table(Dcdat$Kundenklasse , Dcdat$Prognose)))
+          EntQuadA <- as.data.frame.matrix(table(Dcdat$Quad , Dcdat$Prognose)) %>%
+            mutate(Typ = "Quad") %>%
+            mutate(Auspragung = row.names(table(Dcdat$Quad , Dcdat$Prognose)))
+          EntUmsatzA <- as.data.frame.matrix(table(Dcdat$Umsatz , Dcdat$Prognose)) %>%
+            mutate(Typ = "Umsatz") %>%
+            mutate(Auspragung = row.names(table(Dcdat$Umsatz , Dcdat$Prognose)))
+          EntNettoDbA <- as.data.frame.matrix(table(Dcdat$NettoDB , Dcdat$Prognose)) %>%
+            mutate(Typ = "NettoDB") %>%
+            mutate(Auspragung = row.names(table(Dcdat$NettoDB , Dcdat$Prognose)))
+          EntPreisumsetzungA <- as.data.frame.matrix(table(Dcdat$Preisumsetzung , Dcdat$Prognose)) %>%
+            mutate(Typ = "Preisumsetzung") %>%
+            mutate(Auspragung = row.names(table(Dcdat$Preisumsetzung , Dcdat$Prognose)))
+          
+          
+          EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                                     EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+          names(EntropiedataA)[2] =  "notA"
+          
+          
+          EntropiedataA <- EntropiedataA %>%
+            mutate(teil = (A+notA)) %>%
+            mutate(p1 = A/(A + notA)) %>%
+            mutate(p2 = 1-p1) %>%
+            mutate(Entropie = Ent(p1,p2)) %>%
+            group_by(Typ) %>%
+            mutate(gesamt = (sum(A)+sum(notA))) %>%
+            ungroup()
+          EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+          EntropiedataA <- EntropiedataA %>%
+            mutate(Anteil = teil/gesamt) %>%
+            mutate(Entropieanteil = Anteil*Entropie)
+          
+          EntropiesumA <- EntropiedataA %>%
+            group_by(Typ) %>%
+            summarise(Gesamtentropie = sum(Entropieanteil),
+                      Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                           sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+            arrange(desc(Entropiegewinn))
+          
+          
+          bestD <- as.character(EntropiesumA[1,1])
+          
+          ergD <- EntropiedataA %>%
+            filter(Typ == bestD) %>%
+            select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+            mutate(Stufe = 4) %>%
+            mutate(aupreg = d + w*(c-1)) %>% 
+            mutate(ID = paste(f,e,d,c,b,a))
+          
+          IndexD <- which(lu == bestD)
+          
+          
+          varlistD <- unique(Bcdat[IndexD])
+          
+          
+          
+          y <- as.numeric(count(varlistD))
+          Dcdat <- Dcdat %>%
+            mutate("spalte" = Ccdat[IndexD])
+          
+          ERG <- bind_rows(ERG, ergD)
+          
+          #                           Stufe 5
+          
           for(e in 1:y) {
-            
+          
           
             f <- 0
             
-            for(f in 1:z) {
-      
+            E <- as.character(varlistB[e,])
+            Ecdat <- subset(Dcdat,Dcdat$spalte == E)
+            
+            
+            if(!("A" %in% Ecdat$Prognose)){
+              ergE <- data.frame(Typ = bestD,
+                                 Auspragung = "Fertig",
+                                 p1 = 0.0,
+                                 Anteil= 1.0,
+                                 Stufe = 5,
+                                 aupreg = e + x*(d-1),
+                                 ID= paste(f,e,d,c,b,a),
+                                 Entropie = 0)
+              ERG <- bind_rows(ERG, ergE)
+              next}
+            if(!("NA" %in% Ecdat$Prognose)){
+              ergE <- data.frame(Typ = bestD,
+                                 Auspragung = "Fertig",
+                                 p1 = 1.0,
+                                 Anteil= 1.0,
+                                 Stufe = 5,
+                                 aupreg = e + x*(d-1),
+                                 ID= paste(f,e,d,c,b,a),
+                                 Entropie = 0)
+              ERG <- bind_rows(ERG, ergE)
+              next
+            }
+            
+            
+            
+            
+            EntKonzernmarkenA <- as.data.frame.matrix(table(Ecdat$Konzernmarken, Ecdat$Prognose)) %>%
+              mutate(Typ = "Konzernmarken")%>%
+              mutate(Auspragung = row.names(table(Ecdat$Konzernmarken, Ecdat$Prognose)))
+            EntKundenklasseA <- as.data.frame.matrix(table(Ecdat$Kundenklasse , Ecdat$Prognose)) %>%
+              mutate(Typ = "Kundenklasse") %>%
+              mutate(Auspragung = row.names(table(Ecdat$Kundenklasse , Ecdat$Prognose)))
+            EntQuadA <- as.data.frame.matrix(table(Ecdat$Quad , Ecdat$Prognose)) %>%
+              mutate(Typ = "Quad") %>%
+              mutate(Auspragung = row.names(table(Ecdat$Quad , Ecdat$Prognose)))
+            EntUmsatzA <- as.data.frame.matrix(table(Ecdat$Umsatz , Ecdat$Prognose)) %>%
+              mutate(Typ = "Umsatz") %>%
+              mutate(Auspragung = row.names(table(Ecdat$Umsatz , Ecdat$Prognose)))
+            EntNettoDbA <- as.data.frame.matrix(table(Ecdat$NettoDB , Ecdat$Prognose)) %>%
+              mutate(Typ = "NettoDB") %>%
+              mutate(Auspragung = row.names(table(Ecdat$NettoDB , Ecdat$Prognose)))
+            EntPreisumsetzungA <- as.data.frame.matrix(table(Ecdat$Preisumsetzung , Ecdat$Prognose)) %>%
+              mutate(Typ = "Preisumsetzung") %>%
+              mutate(Auspragung = row.names(table(Ecdat$Preisumsetzung , Ecdat$Prognose)))
+            
+            
+            EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                                       EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+            names(EntropiedataA)[2] =  "notA"
+            
+            
+            EntropiedataA <- EntropiedataA %>%
+              mutate(teil = (A+notA)) %>%
+              mutate(p1 = A/(A + notA)) %>%
+              mutate(p2 = 1-p1) %>%
+              mutate(Entropie = Ent(p1,p2)) %>%
+              group_by(Typ) %>%
+              mutate(gesamt = (sum(A)+sum(notA))) %>%
+              ungroup()
+            EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+            EntropiedataA <- EntropiedataA %>%
+              mutate(Anteil = teil/gesamt) %>%
+              mutate(Entropieanteil = Anteil*Entropie)
+            
+            EntropiesumA <- EntropiedataA %>%
+              group_by(Typ) %>%
+              summarise(Gesamtentropie = sum(Entropieanteil),
+                        Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                             sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+              arrange(desc(Entropiegewinn))
+            
+            
+            bestE <- as.character(EntropiesumA[1,1])
+            
+            ergE <- EntropiedataA %>%
+              filter(Typ == bestE) %>%
+              select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+              mutate(Stufe = 5) %>%
+              mutate(aupreg = e + x*(d-1)) %>% 
+              mutate(ID = paste(f,e,d,c,b,a))
+            
+            IndexE <- which(lu == bestE)
+            
+            
+            varlistE <- unique(Bcdat[IndexE])
+            
+            
+            
+            z <- as.numeric(count(varlistE))
+            Ecdat <- Ecdat %>%
+              mutate("spalte" = Ccdat[IndexE])
+            
+            ERG <- bind_rows(ERG, ergE)
+            
+            #                         Stufe 6
+            
+            for(g in 1:z) {
               
-      
-      
-      
+              G <- as.character(varlistB[g,])
+              Gcdat <- subset(Dcdat,Dcdat$spalte == G)
+              
+              
+              if(!("A" %in% Gcdat$Prognose)){
+                ergG <- data.frame(Typ = bestE,
+                                   Auspragung = "Fertig",
+                                   p1 = 0.0,
+                                   Anteil= 1.0,
+                                   Stufe = 6,
+                                   aupreg = g + y*(e-1),
+                                   ID= paste(f,e,d,c,b,a),
+                                   Entropie = 0)
+                ERG <- bind_rows(ERG, ergG)
+                next}
+              if(!("NA" %in% Ecdat$Prognose)){
+                ergG <- data.frame(Typ = bestE,
+                                   Auspragung = "Fertig",
+                                   p1 = 1.0,
+                                   Anteil= 1.0,
+                                   Stufe = 6,
+                                   aupreg = g + y*(e-1),
+                                   ID= paste(f,e,d,c,b,a),
+                                   Entropie = 0)
+                ERG <- bind_rows(ERG, ergG)
+                next
+              }
+              
+              
+              
+              
+              EntKonzernmarkenA <- as.data.frame.matrix(table(Gcdat$Konzernmarken, Gcdat$Prognose)) %>%
+                mutate(Typ = "Konzernmarken")%>%
+                mutate(Auspragung = row.names(table(Gcdat$Konzernmarken, Gcdat$Prognose)))
+              EntKundenklasseA <- as.data.frame.matrix(table(Gcdat$Kundenklasse , Gcdat$Prognose)) %>%
+                mutate(Typ = "Kundenklasse") %>%
+                mutate(Auspragung = row.names(table(Gcdat$Kundenklasse , Gcdat$Prognose)))
+              EntQuadA <- as.data.frame.matrix(table(Gcdat$Quad , Gcdat$Prognose)) %>%
+                mutate(Typ = "Quad") %>%
+                mutate(Auspragung = row.names(table(Gcdat$Quad , Gcdat$Prognose)))
+              EntUmsatzA <- as.data.frame.matrix(table(Gcdat$Umsatz , Gcdat$Prognose)) %>%
+                mutate(Typ = "Umsatz") %>%
+                mutate(Auspragung = row.names(table(Gcdat$Umsatz , Gcdat$Prognose)))
+              EntNettoDbA <- as.data.frame.matrix(table(Gcdat$NettoDB , Gcdat$Prognose)) %>%
+                mutate(Typ = "NettoDB") %>%
+                mutate(Auspragung = row.names(table(Gcdat$NettoDB , Gcdat$Prognose)))
+              EntPreisumsetzungA <- as.data.frame.matrix(table(Gcdat$Preisumsetzung , Gcdat$Prognose)) %>%
+                mutate(Typ = "Preisumsetzung") %>%
+                mutate(Auspragung = row.names(table(Gcdat$Preisumsetzung , Gcdat$Prognose)))
+              
+              
+              EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                                         EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+              names(EntropiedataA)[2] =  "notA"
+              
+              
+              EntropiedataA <- EntropiedataA %>%
+                mutate(teil = (A+notA)) %>%
+                mutate(p1 = A/(A + notA)) %>%
+                mutate(p2 = 1-p1) %>%
+                mutate(Entropie = Ent(p1,p2)) %>%
+                group_by(Typ) %>%
+                mutate(gesamt = (sum(A)+sum(notA))) %>%
+                ungroup()
+              EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+              EntropiedataA <- EntropiedataA %>%
+                mutate(Anteil = teil/gesamt) %>%
+                mutate(Entropieanteil = Anteil*Entropie)
+              
+              EntropiesumA <- EntropiedataA %>%
+                group_by(Typ) %>%
+                summarise(Gesamtentropie = sum(Entropieanteil),
+                          Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                               sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+                arrange(desc(Entropiegewinn))
+              
+              
+              bestG <- as.character(EntropiesumA[1,1])
+              
+              ergG <- EntropiedataA %>%
+                filter(Typ == bestG) %>%
+                select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+                mutate(Stufe = 6) %>%
+                mutate(aupreg = g + y*(e-1)) %>% 
+                mutate(ID = paste(f,e,d,c,b,a))
+              
+              
+              ERG <- bind_rows(ERG, ergG)
+     
             }
           }
         } 
@@ -600,9 +1176,13 @@ dectreelearner <- function(daten){
 }
 
 
-test<- dectreelearner(kd)
+Ergebnis <- dectreelearner(kd)
+Ergebnisdisc <- dectreelearner(kddisc)
 
-EntKonzernmarkenA <- as.data.frame.matrix(table(kd$Umsatz, kd$Prognose)) %>%
-  mutate(Auspragung = row.names(table(kd$Umsatz, kd$Prognose))) 
+Ergebnis_ohnne_Kopfende <- Ergebnis %>%
+  filter(Auspragung != "Fertig")
+
+Ergebnisdisc_ohnne_Kopfende <- Ergebnisdisc %>%
+  filter(Auspragung != "Fertig")
 
 
