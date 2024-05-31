@@ -330,7 +330,7 @@ dectreelearner <- function(daten){
   
   erg0 <- EntropiedataA %>%
     filter(Typ == best0) %>%
-    select("Typ","Auspragung","p1","Anteil") %>%
+    select("Typ","Auspragung","p1","Anteil","Entropie") %>%
     mutate(Stufe = 0) %>%
     mutate(aupreg = 1) %>% 
     mutate(ID = paste(f,e,d,c,b,a))
@@ -351,7 +351,7 @@ dectreelearner <- function(daten){
   #                           Stufe 1
   
   
-  for(a in 10:u) {  ###########ACHTRun
+  for(a in 1:u) {  ###########ACHTRun
     
     b <- 0
     c <- 0
@@ -359,11 +359,29 @@ dectreelearner <- function(daten){
     e <- 0
     f <- 0
     
-    
     K <- as.character(varlist[a,])
     Acdat <- subset(cdat,cdat$spalte == K)
     
     if(!("A" %in% Acdat$Prognose)){
+      ergA <- data.frame(Typ = best0,
+                         Auspragung = "Fertig",
+                         p1 = 0.0,
+                         Anteil= 1.0,
+                         Stufe = 1,
+                         aupreg = a,
+                         ID= paste(f,e,d,c,b,a),
+                         Entropie = 0)
+      ERG <- bind_rows(ERG, ergA)
+      next}
+    if(!("NA" %in% Acdat$Prognose)){
+      ergA <- data.frame(Typ = best0,
+                         Auspragung = "Fertig",
+                         p1 = 1.0,
+                         Anteil= 1.0,
+                         Stufe = 1,
+                         aupreg = a,
+                         ID= paste(f,e,d,c,b,a))
+      ERG <- bind_rows(ERG, ergA)
       next
     }
     
@@ -419,7 +437,7 @@ dectreelearner <- function(daten){
     
     ergA <- EntropiedataA %>%
       filter(Typ == bestA) %>%
-      select("Typ","Auspragung","p1","Anteil") %>%
+      select("Typ","Auspragung","p1","Anteil","Entropie") %>%
       mutate(Stufe = 1) %>%
       mutate(aupreg = a) %>% 
       mutate(ID = paste(f,e,d,c,b,a))
@@ -440,7 +458,7 @@ dectreelearner <- function(daten){
     
     #                                Stufe 2
     
-    for(b in 6:v) { ##################################achtung
+    for(b in 1:v) { ##################################achtung
       
       
       c <- 0
@@ -451,11 +469,31 @@ dectreelearner <- function(daten){
       B <- as.character(varlistA[b,])
       Bcdat <- subset(Acdat,Acdat$spalte == B)
       
+      
       if(!("A" %in% Bcdat$Prognose)){
-        next
+        ergB <- data.frame(Typ = bestA,
+                           Auspragung = "Fertig",
+                           p1 = 0.0,
+                           Anteil= 1.0,
+                           Stufe = 2,
+                           aupreg = b + u*(a-1),
+                           ID= paste(f,e,d,c,b,a),
+                           Entropie = 0)
+        ERG <- bind_rows(ERG, ergB)
+        next}
+      if(!("NA" %in% Bcdat$Prognose)){
+        ergB <- data.frame(Typ = bestA,
+                           Auspragung = "Fertig",
+                           p1 = 1.0,
+                           Anteil= 1.0,
+                           Stufe = 2,
+                           aupreg = b + u*(a-1),
+                           ID= paste(f,e,d,c,b,a),
+                           Entropie = 0)
+          ERG <- bind_rows(ERG, ergB)
+          next
       }
       
-      return(Bcdat)
       
       
       
@@ -509,7 +547,7 @@ dectreelearner <- function(daten){
       
       ergB <- EntropiedataA %>%
         filter(Typ == bestB) %>%
-        select("Typ","Auspragung","p1","Anteil") %>%
+        select("Typ","Auspragung","p1","Anteil","Entropie") %>%
         mutate(Stufe = 2) %>%
         mutate(aupreg = b + u*(a-1)) %>% 
         mutate(ID = paste(f,e,d,c,b,a))
