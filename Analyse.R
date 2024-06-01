@@ -752,4 +752,6 @@ Fertig <- start_rec_ent(kddisc)
 Fertig_Onlypaths <- Fertig %>%
   filter(ending != "ZS")
 
+write.csv(Fertig, file = 'Decisiontree_fin.csv',row.names = FALSE)
+
 
