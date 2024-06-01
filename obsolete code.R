@@ -128,5 +128,70 @@ ErgebnisStufe2 <- cbind(c(1:13),
                         ))
 
 
+}
+
+
+
+
+EntKonzernmarkenA <- as.data.frame.matrix(table(Gcdat$Konzernmarken, Gcdat$Prognose)) %>%
+  mutate(Typ = "Konzernmarken")%>%
+  mutate(Auspragung = row.names(table(Gcdat$Konzernmarken, Gcdat$Prognose)))
+EntKundenklasseA <- as.data.frame.matrix(table(Gcdat$Kundenklasse , Gcdat$Prognose)) %>%
+  mutate(Typ = "Kundenklasse") %>%
+  mutate(Auspragung = row.names(table(Gcdat$Kundenklasse , Gcdat$Prognose)))
+EntQuadA <- as.data.frame.matrix(table(Gcdat$Quad , Gcdat$Prognose)) %>%
+  mutate(Typ = "Quad") %>%
+  mutate(Auspragung = row.names(table(Gcdat$Quad , Gcdat$Prognose)))
+EntUmsatzA <- as.data.frame.matrix(table(Gcdat$Umsatz , Gcdat$Prognose)) %>%
+  mutate(Typ = "Umsatz") %>%
+  mutate(Auspragung = row.names(table(Gcdat$Umsatz , Gcdat$Prognose)))
+EntNettoDbA <- as.data.frame.matrix(table(Gcdat$NettoDB , Gcdat$Prognose)) %>%
+  mutate(Typ = "NettoDB") %>%
+  mutate(Auspragung = row.names(table(Gcdat$NettoDB , Gcdat$Prognose)))
+EntPreisumsetzungA <- as.data.frame.matrix(table(Gcdat$Preisumsetzung , Gcdat$Prognose)) %>%
+  mutate(Typ = "Preisumsetzung") %>%
+  mutate(Auspragung = row.names(table(Gcdat$Preisumsetzung , Gcdat$Prognose)))
+
+
+EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
+                           EntPreisumsetzungA,EntQuadA,EntUmsatzA)
+names(EntropiedataA)[2] =  "notA"
+
+
+EntropiedataA <- EntropiedataA %>%
+  mutate(Vorher = G)%>%
+  mutate(teil = (A+notA)) %>%
+  mutate(p1 = A/(A + notA)) %>%
+  mutate(p2 = 1-p1) %>%
+  mutate(Entropie = Ent(p1,p2)) %>%
+  group_by(Typ) %>%
+  mutate(gesamt = (sum(A)+sum(notA))) %>%
+  ungroup()
+EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
+EntropiedataA <- EntropiedataA %>%
+  mutate(Anteil = teil/gesamt) %>%
+  mutate(Entropieanteil = Anteil*Entropie)
+
+EntropiesumA <- EntropiedataA %>%
+  group_by(Typ) %>%
+  summarise(Gesamtentropie = sum(Entropieanteil),
+            Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
+                                 sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
+  arrange(desc(Entropiegewinn))
+
+
+bestG <- as.character(EntropiesumA[1,1])
+
+ergG <- EntropiedataA %>%
+  filter(Typ == bestG) %>%
+  select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
+  mutate(Stufe = 6) %>%
+  mutate(aupreg = g + y*(e-1)) %>% 
+  mutate(ID = paste(f,e,d,c,b,a))
+
+
+ERG <- bind_rows(ERG, ergG)
+
+}
 
 

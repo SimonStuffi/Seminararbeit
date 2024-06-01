@@ -252,7 +252,8 @@ Längengr <- (discretize(ges$Längengrad, breaks = 2,onlycuts = TRUE))[2]
 gesDisc <- discretizeDF(ges, methods = list(
                       Umsatz = list(method = "frequency", breaks = 5),
                       NettoDB = list(method = "frequency", breaks = 5),
-                      Preisumsetzung = list(method = "frequency", breaks = 6)),
+                      Preisumsetzung = list(method = "frequency", breaks = 6),
+                      Konzernmarken = list(method = "frequency", breaks = 2)),
                       default = list(method = "none"))
 
 
@@ -332,7 +333,6 @@ empirietest <- function(daten,spalte){
     for (i in 1:j) {
     
       x <- as.character(Varlist[i,])
-     print(x)
     
      partdata <- subset(daten,daten$spaltenname == x)
      
@@ -496,6 +496,7 @@ dectreelearner <- function(daten){
   names(EntropiedataA)[2] =  "notA"
   
   EntropiedataA <- EntropiedataA%>%
+    mutate(Vorher = "Anfang")%>%
     mutate(teil = (A+notA)) %>%
     mutate(p1 = A/(A + notA)) %>%
     mutate(p2 = 1-p1) %>%
@@ -519,7 +520,7 @@ dectreelearner <- function(daten){
   
   erg0 <- EntropiedataA %>%
     filter(Typ == best0) %>%
-    select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+    select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
     mutate(Stufe = 0) %>%
     mutate(aupreg = 1) %>% 
     mutate(ID = paste(f,e,d,c,b,a))
@@ -529,18 +530,23 @@ dectreelearner <- function(daten){
   Index <- which(lu == best0)
   
   
-  varlist <- unique(cdat[Index])
+  varlist <- data.frame(unique(cdat[Index]))
+
   
   
   u <- as.numeric(count(varlist))
   cdat <- cdat %>%
     mutate("spalte" = cdat[Index])
   
+ 
+ 
+  
+  
   
   #                           Stufe 1
   
   
-  for(a in 1:u) {  ###########ACHTRun
+  for(a in 1:u) {  
     
     b <- 0
     c <- 0
@@ -551,9 +557,11 @@ dectreelearner <- function(daten){
     K <- as.character(varlist[a,])
     Acdat <- subset(cdat,cdat$spalte == K)
     
+    
     if(!("A" %in% Acdat$Prognose)){
       ergA <- data.frame(Typ = best0,
                          Auspragung = "Fertig",
+                         Vorher = K,
                          p1 = 0.0,
                          Anteil= 1.0,
                          Stufe = 1,
@@ -565,11 +573,13 @@ dectreelearner <- function(daten){
     if(!("NA" %in% Acdat$Prognose)){
       ergA <- data.frame(Typ = best0,
                          Auspragung = "Fertig",
+                         Vorher = K,
                          p1 = 1.0,
                          Anteil= 1.0,
                          Stufe = 1,
                          aupreg = a,
-                         ID= paste(f,e,d,c,b,a))
+                         ID= paste(f,e,d,c,b,a),
+                         Entropie = 0)
       ERG <- bind_rows(ERG, ergA)
       next
     }
@@ -602,6 +612,7 @@ dectreelearner <- function(daten){
     
     
     EntropiedataA <- EntropiedataA%>%
+      mutate(Vorher = K)%>%
       mutate(teil = (A+notA)) %>%
       mutate(p1 = A/(A + notA)) %>%
       mutate(p2 = 1-p1) %>%
@@ -619,14 +630,15 @@ dectreelearner <- function(daten){
       summarise(Gesamtentropie = sum(Entropieanteil),
                 Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
                                      sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
-      arrange(desc(Entropiegewinn))
+      arrange(desc(Entropiegewinn))%>%
+      filter(Typ !=  best0)
     
     
     bestA <- as.character(EntropiesumA[1,1])
     
     ergA <- EntropiedataA %>%
       filter(Typ == bestA) %>%
-      select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+      select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
       mutate(Stufe = 1) %>%
       mutate(aupreg = a) %>% 
       mutate(ID = paste(f,e,d,c,b,a))
@@ -634,7 +646,7 @@ dectreelearner <- function(daten){
     IndexA <- which(lu == bestA)
     
     
-    varlistA <- unique(Acdat[IndexA])
+    varlistA <- data.frame(unique(Acdat[IndexA]))
     
     
     
@@ -647,7 +659,7 @@ dectreelearner <- function(daten){
     
     #                                Stufe 2
     
-    for(b in 1:v) { ##################################achtung
+    for(b in 1:v) {
       
       
       c <- 0
@@ -662,6 +674,7 @@ dectreelearner <- function(daten){
       if(!("A" %in% Bcdat$Prognose)){
         ergB <- data.frame(Typ = bestA,
                            Auspragung = "Fertig",
+                           Vorher = B,
                            p1 = 0.0,
                            Anteil= 1.0,
                            Stufe = 2,
@@ -673,6 +686,7 @@ dectreelearner <- function(daten){
       if(!("NA" %in% Bcdat$Prognose)){
         ergB <- data.frame(Typ = bestA,
                            Auspragung = "Fertig",
+                           Vorher = B,
                            p1 = 1.0,
                            Anteil= 1.0,
                            Stufe = 2,
@@ -712,6 +726,7 @@ dectreelearner <- function(daten){
       
       
       EntropiedataA <- EntropiedataA %>%
+        mutate(Vorher = B)%>%
         mutate(teil = (A+notA)) %>%
         mutate(p1 = A/(A + notA)) %>%
         mutate(p2 = 1-p1) %>%
@@ -729,14 +744,16 @@ dectreelearner <- function(daten){
         summarise(Gesamtentropie = sum(Entropieanteil),
                   Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
                                        sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
-        arrange(desc(Entropiegewinn))
+        arrange(desc(Entropiegewinn))%>%
+        filter(Typ !=  best0 &
+                 Typ != bestA)
       
       
       bestB <- as.character(EntropiesumA[1,1])
       
       ergB <- EntropiedataA %>%
         filter(Typ == bestB) %>%
-        select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+        select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
         mutate(Stufe = 2) %>%
         mutate(aupreg = b + u*(a-1)) %>% 
         mutate(ID = paste(f,e,d,c,b,a))
@@ -744,8 +761,7 @@ dectreelearner <- function(daten){
       IndexB <- which(lu == bestB)
       
       
-      varlistB <- unique(Bcdat[IndexB])
-      
+      varlistB <- data.frame(unique(Bcdat[IndexB]))
       
       
       w <- as.numeric(count(varlistB))
@@ -765,10 +781,10 @@ dectreelearner <- function(daten){
         C <- as.character(varlistB[c,])
         Ccdat <- subset(Bcdat,Bcdat$spalte == C)
         
-        
         if(!("A" %in% Ccdat$Prognose)){
           ergC <- data.frame(Typ = bestB,
                              Auspragung = "Fertig",
+                             Vorher = C,
                              p1 = 0.0,
                              Anteil= 1.0,
                              Stufe = 3,
@@ -780,6 +796,7 @@ dectreelearner <- function(daten){
         if(!("NA" %in% Ccdat$Prognose)){
           ergC <- data.frame(Typ = bestB,
                              Auspragung = "Fertig",
+                             Vorher = C,
                              p1 = 1.0,
                              Anteil= 1.0,
                              Stufe = 3,
@@ -819,6 +836,7 @@ dectreelearner <- function(daten){
         
         
         EntropiedataA <- EntropiedataA %>%
+          mutate(Vorher = C)%>%
           mutate(teil = (A+notA)) %>%
           mutate(p1 = A/(A + notA)) %>%
           mutate(p2 = 1-p1) %>%
@@ -836,14 +854,17 @@ dectreelearner <- function(daten){
           summarise(Gesamtentropie = sum(Entropieanteil),
                     Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
                                          sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
-          arrange(desc(Entropiegewinn))
+          arrange(desc(Entropiegewinn))%>%
+          filter(Typ !=  best0 &
+                  Typ != bestA &
+                  Typ != bestB)
         
         
         bestC <- as.character(EntropiesumA[1,1])
         
         ergC <- EntropiedataA %>%
           filter(Typ == bestC) %>%
-          select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+          select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
           mutate(Stufe = 3) %>%
           mutate(aupreg = c + v*(b-1)) %>% 
           mutate(ID = paste(f,e,d,c,b,a))
@@ -851,7 +872,7 @@ dectreelearner <- function(daten){
         IndexC <- which(lu == bestC)
         
         
-        varlistC <- unique(Bcdat[IndexC])
+        varlistC <- data.frame(unique(Bcdat[IndexC]))
         
         
         
@@ -861,19 +882,21 @@ dectreelearner <- function(daten){
         
         ERG <- bind_rows(ERG, ergC)
         
+        #                           Stufe 4
         
         for(d in 1:x) {
           
           e <- 0
           f <- 0
           
-          D <- as.character(varlistB[d,])
+          D <- as.character(varlistC[d,])
           Dcdat <- subset(Ccdat,Ccdat$spalte == D)
           
           
           if(!("A" %in% Dcdat$Prognose)){
             ergD <- data.frame(Typ = bestC,
                                Auspragung = "Fertig",
+                               Vorher = D,
                                p1 = 0.0,
                                Anteil= 1.0,
                                Stufe = 4,
@@ -885,6 +908,7 @@ dectreelearner <- function(daten){
           if(!("NA" %in% Dcdat$Prognose)){
             ergD <- data.frame(Typ = bestC,
                                Auspragung = "Fertig",
+                               Vorher = D,
                                p1 = 1.0,
                                Anteil= 1.0,
                                Stufe = 4,
@@ -924,6 +948,7 @@ dectreelearner <- function(daten){
           
           
           EntropiedataA <- EntropiedataA %>%
+            mutate(Vorher = D)%>%
             mutate(teil = (A+notA)) %>%
             mutate(p1 = A/(A + notA)) %>%
             mutate(p2 = 1-p1) %>%
@@ -941,14 +966,18 @@ dectreelearner <- function(daten){
             summarise(Gesamtentropie = sum(Entropieanteil),
                       Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
                                            sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
-            arrange(desc(Entropiegewinn))
+            arrange(desc(Entropiegewinn))%>%
+            filter(Typ !=  best0 &
+                     Typ != bestA &
+                     Typ != bestB &
+                     Typ != bestC)
           
           
           bestD <- as.character(EntropiesumA[1,1])
           
           ergD <- EntropiedataA %>%
             filter(Typ == bestD) %>%
-            select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+            select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
             mutate(Stufe = 4) %>%
             mutate(aupreg = d + w*(c-1)) %>% 
             mutate(ID = paste(f,e,d,c,b,a))
@@ -956,13 +985,13 @@ dectreelearner <- function(daten){
           IndexD <- which(lu == bestD)
           
           
-          varlistD <- unique(Bcdat[IndexD])
+          varlistD <- data.frame(unique(Bcdat[IndexD]))
           
           
           
           y <- as.numeric(count(varlistD))
           Dcdat <- Dcdat %>%
-            mutate("spalte" = Ccdat[IndexD])
+            mutate("spalte" = Dcdat[IndexD])
           
           ERG <- bind_rows(ERG, ergD)
           
@@ -970,16 +999,19 @@ dectreelearner <- function(daten){
           
           for(e in 1:y) {
           
-          
+            
             f <- 0
             
-            E <- as.character(varlistB[e,])
+            E <- as.character(varlistD[e,])
             Ecdat <- subset(Dcdat,Dcdat$spalte == E)
+            
+            print(Ecdat$Prognose)
             
             
             if(!("A" %in% Ecdat$Prognose)){
               ergE <- data.frame(Typ = bestD,
                                  Auspragung = "Fertig",
+                                 Vorher = E,
                                  p1 = 0.0,
                                  Anteil= 1.0,
                                  Stufe = 5,
@@ -991,6 +1023,7 @@ dectreelearner <- function(daten){
             if(!("NA" %in% Ecdat$Prognose)){
               ergE <- data.frame(Typ = bestD,
                                  Auspragung = "Fertig",
+                                 Vorher = E,
                                  p1 = 1.0,
                                  Anteil= 1.0,
                                  Stufe = 5,
@@ -1001,7 +1034,7 @@ dectreelearner <- function(daten){
               next
             }
             
-            
+            print("continues")
             
             
             EntKonzernmarkenA <- as.data.frame.matrix(table(Ecdat$Konzernmarken, Ecdat$Prognose)) %>%
@@ -1030,6 +1063,7 @@ dectreelearner <- function(daten){
             
             
             EntropiedataA <- EntropiedataA %>%
+              mutate(Vorher = E)%>%
               mutate(teil = (A+notA)) %>%
               mutate(p1 = A/(A + notA)) %>%
               mutate(p2 = 1-p1) %>%
@@ -1047,14 +1081,19 @@ dectreelearner <- function(daten){
               summarise(Gesamtentropie = sum(Entropieanteil),
                         Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
                                              sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
-              arrange(desc(Entropiegewinn))
+              arrange(desc(Entropiegewinn))%>%
+              filter(Typ !=  best0 &
+                       Typ != bestA &
+                       Typ != bestB &
+                       Typ != bestC &
+                       Typ != bestD)
             
             
             bestE <- as.character(EntropiesumA[1,1])
             
             ergE <- EntropiedataA %>%
               filter(Typ == bestE) %>%
-              select("Typ","Auspragung","p1","Anteil","Entropie") %>%
+              select("Typ","Auspragung","Vorher","p1","Anteil","Entropie") %>%
               mutate(Stufe = 5) %>%
               mutate(aupreg = e + x*(d-1)) %>% 
               mutate(ID = paste(f,e,d,c,b,a))
@@ -1062,13 +1101,13 @@ dectreelearner <- function(daten){
             IndexE <- which(lu == bestE)
             
             
-            varlistE <- unique(Bcdat[IndexE])
+            varlistE <- data.frame(unique(Bcdat[IndexE]))
             
             
             
             z <- as.numeric(count(varlistE))
             Ecdat <- Ecdat %>%
-              mutate("spalte" = Ccdat[IndexE])
+              mutate("spalte" = Ecdat[IndexE])
             
             ERG <- bind_rows(ERG, ergE)
             
@@ -1076,95 +1115,35 @@ dectreelearner <- function(daten){
             
             for(g in 1:z) {
               
-              G <- as.character(varlistB[g,])
+              G <- as.character(varlistE[g,])
               Gcdat <- subset(Dcdat,Dcdat$spalte == G)
               
               
               if(!("A" %in% Gcdat$Prognose)){
                 ergG <- data.frame(Typ = bestE,
                                    Auspragung = "Fertig",
+                                   Vorher = G,
                                    p1 = 0.0,
                                    Anteil= 1.0,
                                    Stufe = 6,
                                    aupreg = g + y*(e-1),
-                                   ID= paste(f,e,d,c,b,a),
+                                   ID= paste(g,e,d,c,b,a),
                                    Entropie = 0)
                 ERG <- bind_rows(ERG, ergG)
                 next}
-              if(!("NA" %in% Ecdat$Prognose)){
+              if(!("NA" %in% Gcdat$Prognose)){
                 ergG <- data.frame(Typ = bestE,
                                    Auspragung = "Fertig",
+                                   Vorher = G,
                                    p1 = 1.0,
                                    Anteil= 1.0,
                                    Stufe = 6,
                                    aupreg = g + y*(e-1),
-                                   ID= paste(f,e,d,c,b,a),
+                                   ID= paste(g,e,d,c,b,a),
                                    Entropie = 0)
                 ERG <- bind_rows(ERG, ergG)
                 next
               }
-              
-              
-              
-              
-              EntKonzernmarkenA <- as.data.frame.matrix(table(Gcdat$Konzernmarken, Gcdat$Prognose)) %>%
-                mutate(Typ = "Konzernmarken")%>%
-                mutate(Auspragung = row.names(table(Gcdat$Konzernmarken, Gcdat$Prognose)))
-              EntKundenklasseA <- as.data.frame.matrix(table(Gcdat$Kundenklasse , Gcdat$Prognose)) %>%
-                mutate(Typ = "Kundenklasse") %>%
-                mutate(Auspragung = row.names(table(Gcdat$Kundenklasse , Gcdat$Prognose)))
-              EntQuadA <- as.data.frame.matrix(table(Gcdat$Quad , Gcdat$Prognose)) %>%
-                mutate(Typ = "Quad") %>%
-                mutate(Auspragung = row.names(table(Gcdat$Quad , Gcdat$Prognose)))
-              EntUmsatzA <- as.data.frame.matrix(table(Gcdat$Umsatz , Gcdat$Prognose)) %>%
-                mutate(Typ = "Umsatz") %>%
-                mutate(Auspragung = row.names(table(Gcdat$Umsatz , Gcdat$Prognose)))
-              EntNettoDbA <- as.data.frame.matrix(table(Gcdat$NettoDB , Gcdat$Prognose)) %>%
-                mutate(Typ = "NettoDB") %>%
-                mutate(Auspragung = row.names(table(Gcdat$NettoDB , Gcdat$Prognose)))
-              EntPreisumsetzungA <- as.data.frame.matrix(table(Gcdat$Preisumsetzung , Gcdat$Prognose)) %>%
-                mutate(Typ = "Preisumsetzung") %>%
-                mutate(Auspragung = row.names(table(Gcdat$Preisumsetzung , Gcdat$Prognose)))
-              
-              
-              EntropiedataA <- bind_rows(EntKundenklasseA,EntKonzernmarkenA,EntNettoDbA,
-                                         EntPreisumsetzungA,EntQuadA,EntUmsatzA)
-              names(EntropiedataA)[2] =  "notA"
-              
-              
-              EntropiedataA <- EntropiedataA %>%
-                mutate(teil = (A+notA)) %>%
-                mutate(p1 = A/(A + notA)) %>%
-                mutate(p2 = 1-p1) %>%
-                mutate(Entropie = Ent(p1,p2)) %>%
-                group_by(Typ) %>%
-                mutate(gesamt = (sum(A)+sum(notA))) %>%
-                ungroup()
-              EntropiedataA$Entropie[is.nan(EntropiedataA$Entropie)] <- 0
-              EntropiedataA <- EntropiedataA %>%
-                mutate(Anteil = teil/gesamt) %>%
-                mutate(Entropieanteil = Anteil*Entropie)
-              
-              EntropiesumA <- EntropiedataA %>%
-                group_by(Typ) %>%
-                summarise(Gesamtentropie = sum(Entropieanteil),
-                          Entropiegewinn = Ent(sum(A)/(sum(A)+sum(notA)),
-                                               sum(notA)/(sum(A)+sum(notA))) - sum(Entropieanteil))  %>%
-                arrange(desc(Entropiegewinn))
-              
-              
-              bestG <- as.character(EntropiesumA[1,1])
-              
-              ergG <- EntropiedataA %>%
-                filter(Typ == bestG) %>%
-                select("Typ","Auspragung","p1","Anteil","Entropie") %>%
-                mutate(Stufe = 6) %>%
-                mutate(aupreg = g + y*(e-1)) %>% 
-                mutate(ID = paste(f,e,d,c,b,a))
-              
-              
-              ERG <- bind_rows(ERG, ergG)
-     
             }
           }
         } 
