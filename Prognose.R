@@ -70,7 +70,7 @@ Längengr <- (discretize(ges$Längengrad, breaks = 2, onlycuts = TRUE))[2]
 ges <- ges %>%
   mutate(Quad = ifelse(Breitengrad <= Breitgr & Längengrad <= Längengr, "<50,2724/<9,7901", 
                        ifelse(Breitengrad > Breitgr & Längengrad <= Längengr, ">50,2724/<9,7901",
-                              ifelse(Breitengrad <= Breitgr & Längengrad > Längengr, "50,2724/>9,7901", 
+                              ifelse(Breitengrad <= Breitgr & Längengrad > Längengr, "<50,2724/>9,7901", 
                                      ifelse(Breitengrad > Breitgr & Längengrad > Längengr, ">50,2724/>9,7901", NA)))))
 
 
@@ -91,60 +91,65 @@ prognose <- function(erg, dictree){
   prog <- erg %>%
     filter(Unternehmen == "vier")
   
+  
   for(u in erg$Unternehmen){
     
     unt <- erg %>%
       filter(Unternehmen == u)
     
     branch <- dictree
+    zbranch <- branch
     
     for (i in 7:17) {
       
-      if(sum(branch[,3])==0){
+      
+      if(sum(zbranch[,3])==0){
         
         unt[1,8] <- 0
-        unt[1,9] <- branch[1,5]
+        unt[1,9] <- zbranch[1,5]
         break
       }
       
-      if(sum(branch[,4])==0){
+      if(sum(zbranch[,4])==0){
         
         unt[1,8] <- 1
-        unt[1,9] <- branch[1,5]
+        unt[1,9] <- zbranch[1,5]
         break
       }
+      
+      branch <- zbranch
       
       
       
       if(branch[2,i] == "Konzernmarken" ){
         
-        branch<-branch %>%
+        zbranch<-branch %>%
           filter(branch[,i+1] == unt$Konzernmarken)
       }else{
         if(branch[2,i] == "Umsatz" ){
           
-          branch<-branch %>%
+          zbranch<-branch %>%
             filter(branch[,i+1] == as.character(unt$Umsatz))
         }else{
           if(branch[2,i] == "NettoDB" ){
             
-            branch<-branch %>%
+            zbranch<-branch %>%
               filter(branch[,i+1] == as.character(unt$NettoDB))
           }else{
             if(branch[2,i] == "Preisumsetzung" ){
               
               
-              branch<-branch %>%
+              zbranch<-branch %>%
                 filter(branch[,i+1] == as.character(unt$Preisumsetzung))
             }else{
               if(branch[2,i] == "Kundenklasse" ){
                 
-                branch<-branch %>%
+                zbranch<-branch %>%
                   filter(branch[,i+1] == unt$Kundenklasse)
               }else{
                 if(branch[2,i] == "Quad" ){
                   
-                  branch<-branch %>%
+                  zbranch<-branch %>%
                     filter(branch[,i+1] == unt$Quad)
                 }
               }
@@ -154,12 +159,19 @@ prognose <- function(erg, dictree){
       }
       
       i <- i+1
+      
+      if(length(zbranch[,1]) == 0){
+        
+        zbranch[1,2] <- branch[1,2]
+        zbranch[1,5] <- branch[1,3] + branch[1,4]
+        break
+      }
+      
     }
-    unt[1,8] <- branch[1,2]
-    unt[1,9] <- branch[1,5]
+    unt[1,8] <- zbranch[1,2]
+    unt[1,9] <- zbranch[1,5]
     
     prog <- bind_rows(prog,unt)
-    
   }
   return(prog)
 }
@@ -181,7 +193,7 @@ zsmfsung <- finito%>%
   group_by(Prognose)%>%
   summarise(anzahl = length(Unternehmen),
            anteil = length(Unternehmen)/length(finito$Unternehmen),
-           avg_Datenmenge = mean(gesamt))
+           avg_Datenmenge = mean(Datenmenge))
          
-  
+sum(zsmfsung$anzahl)
 

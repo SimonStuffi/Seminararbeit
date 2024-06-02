@@ -279,7 +279,7 @@ gesDisc <- discretizeDF(ges, methods = list(
 gesDisc <- gesDisc %>%
   mutate(Quad = ifelse(Breitengrad <= Breitgr & Längengrad <= Längengr, "<50,2724/<9,7901", 
                 ifelse(Breitengrad > Breitgr & Längengrad <= Längengr, ">50,2724/<9,7901",
-                ifelse(Breitengrad <= Breitgr & Längengrad > Längengr, "50,2724/>9,7901", 
+                ifelse(Breitengrad <= Breitgr & Längengrad > Längengr, "<50,2724/>9,7901", 
                 ifelse(Breitengrad > Breitgr & Längengrad > Längengr, ">50,2724/>9,7901", NA)))))
 
 ges <- ges %>%
