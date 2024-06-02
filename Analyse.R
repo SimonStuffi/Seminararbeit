@@ -52,7 +52,7 @@ dplz <- plz %>% distinct(PLZ, .keep_all = TRUE)
 
 #Daten mergen
 
-kunden <- bind_rows(kunden_2016, kunden_2017, kunden_2018) 
+kunden <- bind_rows(kunden_2016, kunden_2017, kunden_2018,kunden_2019) 
 "Kunden2019n"
 ges <- left_join(kunden, dplz, "PLZ")
 names(ges)[7] =  "NettoDB"
@@ -245,6 +245,7 @@ abline(h = discretize(ges$Längengrad, breaks = z,
 Breitgr <- (discretize(ges$Breitengrad, breaks = 2, onlycuts = TRUE))[2]
 Längengr <- (discretize(ges$Längengrad, breaks = 2,onlycuts = TRUE))[2]
 
+
 #                             Konzernmarken
 
 ErgKOnz <- data.frame(breaks = c(2:13),
@@ -267,12 +268,12 @@ plot(ErgKOnz$breaks,ErgKOnz$differenz1, type = "l")
 #                       Diskretisieren abschließen
 
 gesDisc <- discretizeDF(ges, methods = list(
-                      Umsatz = list(method = "frequency", breaks = 2),
-                      NettoDB = list(method = "frequency", breaks = 3),
-                      Preisumsetzung = list(method = "frequency", breaks = 3)),
+                      Umsatz = list(method = "frequency", breaks = 2,labels = c("Hoher Umsatz","Niedriger Umsatz")),
+                      NettoDB = list(method = "frequency", breaks = 3,labels = c("Hoher Netto-DB","Mittlerer Netto-DB","Niedriger Netto-DB")),
+                      Preisumsetzung = list(method = "frequency", breaks = 3,labels = c("Hohe Pr.Um.","Mittlere Pr.Um.","Niedrige Pr.Um."))),
                       default = list(method = "none"))
 
-#,Konzernmarken = list(method = "frequency", breaks = 2)
+
 
 
 gesDisc <- gesDisc %>%
@@ -304,13 +305,20 @@ ges <- ges %>%
                           ifelse(Preisumsetzung > 1 & Preisumsetzung <= 2.5, "1-2,5",
                           ifelse(Preisumsetzung > 2.5 & Preisumsetzung <= 5, "2,5-5",
                           ifelse(Preisumsetzung > 5, ">5", NA))))))
-    
+gesDisc <- gesDisc %>%
+  filter(Jahr != 2019)
+
+ges <- ges %>%
+  filter(Jahr != 2019)
     
 kddisc <- gesDisc %>%
-  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr")
+  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr") %>%
+  mutate(Kundenklasse = ifelse(Kundenklasse != "A","notA","A"))
 
 kd <- ges %>%
-  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr")
+  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr") %>%
+  mutate(Kundenklasse = ifelse(Kundenklasse != "A","notA","A"))
+
 
 
 #                             Stufenlearner:
@@ -747,11 +755,11 @@ RecEntr <- function(recERG,cdat,Index,
   
 }
 
-Fertig <- start_rec_ent(kddisc)
+decTree <- start_rec_ent(kddisc)
 
-Fertig_Onlypaths <- Fertig %>%
+decTree_Onlypaths <- decTree %>%
   filter(ending != "ZS")
 
-write.csv(Fertig, file = 'Decisiontree_fin.csv',row.names = FALSE)
+write.csv(decTree, file = 'Decisiontree_fin.csv',row.names = FALSE)
 
 
