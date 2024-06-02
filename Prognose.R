@@ -78,15 +78,18 @@ ges <- ges %>%
   filter(Jahr == 2019)
 
 progdat <- ges %>%
-  select("Unternehmen","Prognose","Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad")%>%
-  mutate(Kundenklasse = ifelse(Kundenklasse != "A","notA","A"))
+  select("Unternehmen","Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad")%>%
+  mutate(Kundenklasse = ifelse(Kundenklasse != "A","notA","A"))%>%
+  mutate(p1 = 99.000000) %>%
+  mutate(Datenmenge = 0)
 
 decTree <- read.csv("Decisiontree_fin.csv")
 
 
 prognose <- function(erg, dictree){
   
-  lu <- c("","","Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad")
+  prog <- erg %>%
+    filter(Unternehmen == "vier")
   
   for(u in erg$Unternehmen){
     
@@ -95,51 +98,90 @@ prognose <- function(erg, dictree){
     
     branch <- dictree
     
-    i <- which(lu == branch$step1[1])
-    wert <- as.character(unt[i])
+    for (i in 7:17) {
+      
+      if(sum(branch[,3])==0){
+        
+        unt[1,8] <- 0
+        unt[1,9] <- branch[1,5]
+        break
+      }
+      
+      if(sum(branch[,4])==0){
+        
+        unt[1,8] <- 1
+        unt[1,9] <- branch[1,5]
+        break
+      }
+      
+      
+      
+      if(branch[2,i] == "Konzernmarken" ){
+        
+        branch<-branch %>%
+          filter(branch[,i+1] == unt$Konzernmarken)
+      }else{
+        if(branch[2,i] == "Umsatz" ){
+          
+          branch<-branch %>%
+            filter(branch[,i+1] == as.character(unt$Umsatz))
+        }else{
+          if(branch[2,i] == "NettoDB" ){
+            
+            branch<-branch %>%
+              filter(branch[,i+1] == as.character(unt$NettoDB))
+          }else{
+            if(branch[2,i] == "Preisumsetzung" ){
+              
+              
+              branch<-branch %>%
+                filter(branch[,i+1] == as.character(unt$Preisumsetzung))
+            }else{
+              if(branch[2,i] == "Kundenklasse" ){
+                
+                branch<-branch %>%
+                  filter(branch[,i+1] == unt$Kundenklasse)
+              }else{
+                if(branch[2,i] == "Quad" ){
+                  
+                  branch<-branch %>%
+                    filter(branch[,i+1] == unt$Quad)
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      i <- i+1
+    }
+    unt[1,8] <- branch[1,2]
+    unt[1,9] <- branch[1,5]
     
-    print(i)
-    
-    print(wert)
-    
-    branch <- branch %>%
-      filter(Aup1 == wert)
-    
-    
-    i <- which(lu == branch$step2[1])
-    wert <- as.character(unt[i,])
-    
-    branch <- branch %>%
-      filter(Aup2 == wert)
-    
-    
-    i <- which(lu == branch$step3[1])
-    wert <- as.character(unt[i,])
-    
-    branch <- branch %>%
-      filter(Aup3 == wert)
-    
-    i <- which(lu == branch$step4[1])
-    wert <- as.character(unt[i,])
-    
-    branch <- branch %>%
-      filter(Aup4 == wert)
-    
-    i <- which(lu == branch$step5[1])
-    wert <- as.character(unt[i,])
-    
-    branch <- branch %>%
-      filter(Aup5 == wert)
-    
-    i <- which(lu == branch$step6[1])
-    wert <- as.character(unt[i,])
-    
-    
-    branch <- branch %>%
-      filter(Aup6 == wert)
-    
+    prog <- bind_rows(prog,unt)
     
   }
+  return(prog)
 }
 
 finito <- prognose(progdat, decTree)
+
+finito <- finito%>%
+  mutate(Prognose = ifelse(p1 == 0,"notA",
+                           ifelse(p1 < 0.33,"probably notA",
+                                  ifelse(p1 >= 0.33 & p1 < 0.5,"slightly notA",
+                                         ifelse(p1 == 0.5,"completely uncertain",
+                                                ifelse(p1 > 0.5 & p1 <= 0.66,"slightly A",
+                                                      ifelse(p1 < 1,"probably A",
+                                                            ifelse(p1 == 1,"A",NA))))))))
+
+
+
+zsmfsung <- finito%>%
+  group_by(Prognose)%>%
+  summarise(anzahl = length(Unternehmen),
+           anteil = length(Unternehmen)/length(finito$Unternehmen),
+           avg_Datenmenge = mean(gesamt))
+         
+  
+
