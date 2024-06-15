@@ -57,8 +57,10 @@ kunden <- bind_rows(kunden_2016, kunden_2017, kunden_2018,kunden_2019)
 ges <- left_join(kunden, dplz, "PLZ")
 names(ges)[7] =  "NettoDB"
 
-
-
+plotting <- ges %>%
+  mutate(Kundenklasse = ifelse(Kundenklasse != "A","0","1")) %>%
+  mutate(Kundenklasse = as.numeric(Kundenklasse))
+plot(plotting$Kundenklasse,plotting$Umsatz)
 #                               Klassifikation:
 
 
@@ -81,6 +83,18 @@ gesNA <- ges %>%
   filter(Prognose == "NA")
 
 #                                   Umsatz
+
+
+Entdisc <- data.frame(breaks = 0,break1 = 0, break2 = 0, break3 = 0,entropie =  1)
+
+x <- 1
+
+for (x in 3) {
+
+  
+  
+  }
+
 
 Erg <- data.frame(breaks = c(2:13),
                   differenz1 = rep(0,12))
