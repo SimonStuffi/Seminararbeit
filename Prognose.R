@@ -85,6 +85,18 @@ progdat <- ges %>%
 
 decTree <- read.csv("Decisiontree_fin.csv")
 
+testdata <- read.csv("testdata.csv")%>%
+  mutate(Unternehmen = 1:length(testdata$Unternehmen))
+
+Checktable <- testdata[c(2,11)]
+
+testdata <- testdata %>%
+  select("Unternehmen","Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad")%>%
+  mutate(p1 = 99.000000) %>%
+  mutate(Datenmenge = 0)
+
+
+
 
 prognose <- function(erg, dictree){
   
@@ -176,16 +188,48 @@ prognose <- function(erg, dictree){
   return(prog)
 }
 
+testerg <- prognose(testdata, decTree)
+
+realtest <- left_join(Checktable, testerg, "Unternehmen")
+
+diffrealtest <- realtest%>%
+  mutate(Prognosetest = ifelse(p1 == 0,"notA",
+                               ifelse(p1 < 0.33,"wahrscheinlich notA",
+                                      ifelse(p1 >= 0.33 & p1 < 0.5,"tendiert notA",
+                                             ifelse(p1 == 0.5,"Gleichverteilt",
+                                                    ifelse(p1 > 0.5 & p1 <= 0.66,"tendiert A",
+                                                           ifelse(p1 < 1,"wahrscheinlich A",
+                                                                  ifelse(p1 == 1,"A",NA))))))))
+realtest <- realtest%>%
+  mutate(Prognosetest = ifelse(p1 < 0.5,"notA","A"))
+
+testergebnis <- as.data.frame.matrix(prop.table(table(realtest$Prognose,realtest$Prognosetest)))
+
+difftestergebnis <- as.data.frame.matrix(prop.table(table(diffrealtest$Prognose,diffrealtest$Prognosetest),margin = 2))
+  
+
+names(testergebnis) = c("prog. A", "prog. notA")
+
+kable(testergebnis)%>%
+  kable_styling()
+
+difftestergebnis <- difftestergebnis %>%
+  select("A","wahrscheinlich A","tendiert A","Gleichverteilt","tendiert notA","wahrscheinlich notA","notA")
+
+kable(difftestergebnis)%>%
+  kable_styling()
+
+
 finito <- prognose(progdat, decTree)
 
 finito <- finito%>%
   mutate(Prognose = ifelse(p1 == 0,"notA",
-                           ifelse(p1 < 0.33,"probably notA",
-                                  ifelse(p1 >= 0.33 & p1 < 0.5,"slightly notA",
-                                         ifelse(p1 == 0.5,"completely uncertain",
-                                                ifelse(p1 > 0.5 & p1 <= 0.66,"slightly A",
-                                                      ifelse(p1 < 1,"probably A",
-                                                            ifelse(p1 == 1,"A",NA))))))))
+                           ifelse(p1 < 0.33,"wahrscheinlich notA",
+                                  ifelse(p1 >= 0.33 & p1 < 0.5,"tendiert notA",
+                                         ifelse(p1 == 0.5,"Gleichverteilt",
+                                                ifelse(p1 > 0.5 & p1 <= 0.66,"tendiert A",
+                                                       ifelse(p1 < 1,"wahrscheinlich A",
+                                                              ifelse(p1 == 1,"A",NA))))))))
 
 
 

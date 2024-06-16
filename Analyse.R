@@ -15,6 +15,7 @@ library(Boruta)
 library(cvms)
 library(dplyr)
 library(arulesCBA)
+library(rsample)
 
 is.nan.data.frame <- function(x)
   do.call(cbind, lapply(x, is.nan))
@@ -310,10 +311,21 @@ gesDisc <- gesDisc %>%
 
 ges <- ges %>%
   filter(Jahr != 2019)
+
+split <- initial_split(gesDisc, prop = 3/4)
+
+gestrain <- training(split)
+gestest <- testing(split)
+
     
-kddisc <- gesDisc %>%
+kddisc <- gestrain %>%
   select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr") %>%
   mutate(Kundenklasse = ifelse(Kundenklasse != "A","notA","A"))
+
+kdtest <- gestest %>%
+  select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr") %>%
+  mutate(Kundenklasse = ifelse(Kundenklasse != "A","notA","A"))
+
 
 kd <- ges %>%
   select("Konzernmarken", "Umsatz","NettoDB", "Preisumsetzung", "Kundenklasse", "Quad", "Prognose", "Jahr") %>%
@@ -761,5 +773,5 @@ decTree_Onlypaths <- decTree %>%
   filter(ending != "ZS")
 
 write.csv(decTree, file = 'Decisiontree_fin.csv',row.names = FALSE)
-
+write.csv(kdtest, file = 'testdata.csv',row.names = FALSE)
 
