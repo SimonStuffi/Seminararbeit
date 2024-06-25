@@ -96,7 +96,7 @@ testdata <- testdata %>%
   mutate(Datenmenge = 0)
 
 
-
+################# Funktion für DecTree Anwendung:
 
 prognose <- function(erg, dictree){
   
@@ -187,6 +187,8 @@ prognose <- function(erg, dictree){
   }
   return(prog)
 }
+
+################### Anwenndung und umformung der Ergebnisse
 
 testerg <- prognose(testdata, decTree)
 
